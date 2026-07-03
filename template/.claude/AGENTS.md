@@ -69,3 +69,8 @@ Page class("flex flex-col gap-4 p-6") {
 
 ## Commands
 `npm run dev` (`muten dev` - esbuild dev server + surgical HMR) · `npm run build` (`muten bundle` - production CSR) · `npm run lint` (`muten check`).
+
+## Plugins (optional)
+Enabled in `muten.config`'s `plugins {}` block; `muten add <name>` installs + configures for you.
+- **`muten add devtools`** → [`@muten/devtools`](https://www.npmjs.com/package/@muten/devtools): a dev-only in-app overlay (component tree · editable state · Redux-style history + time-travel · profiler · element picker). `muten dev` auto-mounts it; production omits it (zero cost).
+- **`muten add Card Dialog …`** (PascalCase) → eject shadcn-style components from an installed registry (e.g. `@muten/shadcn`) into `src/parts/`.

@@ -2,7 +2,7 @@
 // create-muten — scaffold a new Muten app, with modern interactive prompts (@clack/prompts).
 //
 //   npm create muten@latest [name]              (or: npx create-muten)
-//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]
+//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]
 //
 // Stylesheet (CSS or SCSS) is the base; Tailwind is an optional add-on ON TOP of CSS (it's a styling
 // library, not a stylesheet replacement). Interactive in a TTY; flags / non-TTY make it scriptable.
@@ -121,25 +121,29 @@ const FORM_CSS = `
 // quotes (muten strings can't hold `{`/`"`); muten.config wraps them back into blocks. css-only is zero-config
 // (no file — muten emits :root vars). There is no muten.config for css-only: `muten dev`/`muten bundle` is the
 // runner (embedded esbuild) and needs no config; a muten.config is only written for Tailwind/DaisyUI.
-const mutenConfigText = ({ styling, classes }) => {
+const mutenConfigText = ({ styling, classes, plugins = [] }) => {
   const key = (k) => /^[a-z][a-z0-9]*$/i.test(k) ? k : `"${k}"`;            // quote hyphenated/non-ident keys
   const sel = (open) => open.replace(/\s*\{\s*$/, '').replace(/"/g, "'");   // "@theme {" -> "@theme"; double -> single quotes
   const L = [
-    '# muten.config — the build, in muten. The styling block maps theme.muten -> CSS variables for your',
-    '# library (the engine ships none). The only .js/.ts in a muten app are the escapes (Custom / use).',
-    '', 'styling {',
-    `  prefix { ${Object.entries(styling.prefix).map(([s, p]) => `${s} "${p}"`).join('  ')} }`,
-    '  blocks {',
+    '# muten.config — the build, in muten. `plugins {}` enables connectable plugins (@muten/<name>); the styling',
+    '# block maps theme.muten -> CSS variables for your library. The only .js/.ts in a muten app are the escapes.',
+    '',
   ];
-  styling.blocks.forEach((b, i) => {
-    const name = (b.attrs && b.attrs.name) || ['base', 'light', 'extra'][i] || `b${i}`;
-    const attrs = b.attrs ? ` attrs { ${Object.entries(b.attrs).map(([k, v]) => `${key(k)} "${v}"`).join('  ')} }` : '';
-    L.push(`    ${name} { selector "${sel(b.open)}"${attrs} sections [${b.sections.join(', ')}] }`);
-  });
-  L.push('  }');
-  if (classes) { L.push('  classes {'); for (const [slot, v] of Object.entries(classes)) L.push(`    ${key(slot)} "${v}"`); L.push('  }'); }
-  L.push('}');
-  return L.join('\n') + '\n';
+  if (plugins.length) { L.push('plugins {'); for (const p of plugins) L.push(`  ${p} {}`); L.push('}', ''); }
+  if (styling) {
+    L.push('styling {',
+      `  prefix { ${Object.entries(styling.prefix).map(([s, p]) => `${s} "${p}"`).join('  ')} }`,
+      '  blocks {');
+    styling.blocks.forEach((b, i) => {
+      const name = (b.attrs && b.attrs.name) || ['base', 'light', 'extra'][i] || `b${i}`;
+      const attrs = b.attrs ? ` attrs { ${Object.entries(b.attrs).map(([k, v]) => `${key(k)} "${v}"`).join('  ')} }` : '';
+      L.push(`    ${name} { selector "${sel(b.open)}"${attrs} sections [${b.sections.join(', ')}] }`);
+    });
+    L.push('  }');
+    if (classes) { L.push('  classes {'); for (const [slot, v] of Object.entries(classes)) L.push(`    ${key(slot)} "${v}"`); L.push('  }'); }
+    L.push('}');
+  }
+  return L.join('\n').replace(/\n+$/, '') + '\n';
 };
 // theme.muten is AGNOSTIC values; a `styling` ADAPTER (data, in muten.config) tells muten how to emit them
 // for the chosen library. The scaffolder seeds a skeleton + the matching adapter per backend (the ENGINE
@@ -232,6 +236,18 @@ DaisyUI adds **component classes** on top of Tailwind — use them in \`class("�
 \`@plugin "daisyui";\` is already in \`src/styles.css\`. Interactive behavior (toggle a modal/dropdown) you build
 with Muten: \`state\` + \`class(active when isOpen)\` + \`on(click: …)\`.
 `;
+// @muten/devtools = the in-app DevTools plugin (dev-only overlay). Auto-mounted by `muten dev`; production omits it.
+const DEVTOOLS_NOTE = `
+## DevTools (@muten/devtools, installed)
+In-app DevTools, **dev-only** (zero production cost — \`muten bundle\`/\`build\` never include it). \`muten dev\`
+auto-mounts the overlay (bottom-right; open with the launcher or \`Ctrl+Shift+D\`). Enabled via
+\`plugins { devtools {} }\` in muten.config.
+- **Tree** — the component tree with source refs, an element picker (click the app to inspect), and per-node
+  props / reacts-to (which state drives it) / live values.
+- **State** — every state grouped by scope, **editable** inline, plus a Redux-style **History** with granular
+  diffs, real action names, and **time-travel**.
+- **Perf** — ms-to-react (DOM + state), record a session, and highlight what changes in the app, live.
+`;
 // Tauri = the SAME web build wrapped in a native OS-webview window (no browser bundled). Desktop target.
 const TAURI_NOTE = (pm) => `
 ## Desktop app (Tauri)
@@ -270,7 +286,7 @@ async function main() {
   const has = (f) => argv.includes(f);
   const val = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
   if (has('-v') || has('--version')) { console.log(PKG.version); return; }
-  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]'); return; }
+  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]'); return; }
 
   let name = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--pm')[0];
   let style = has('--scss') ? 'scss' : has('--css') ? 'css' : undefined;     // the base stylesheet
@@ -278,6 +294,7 @@ async function main() {
   let daisyui = has('--daisyui') ? true : undefined;                          // component classes on Tailwind
   let vercel = has('--vercel') ? true : undefined;                            // a vercel.json with the SPA fallback rewrite
   let tauri = has('--tauri') ? true : undefined;                              // src-tauri/ → native desktop app
+  let devtools = has('--devtools') ? true : has('--no-devtools') ? false : undefined; // @muten/devtools plugin (dev-only overlay)
   let pm = val('--pm');
   let install = has('--no-install') ? false : undefined;
   if (name && !validName(name)) { console.error(`Invalid name: "${name}" (letters, digits, . _ -)`); process.exit(1); }
@@ -300,6 +317,7 @@ async function main() {
       tailwind = styling === 'tailwind' || styling === 'daisyui';
       daisyui = styling === 'daisyui';
     }
+    if (devtools === undefined) devtools = keep(await confirm({ message: 'Add DevTools? (@muten/devtools — in-app tree, editable state, time-travel; dev-only, zero prod cost)', initialValue: true }));
     if (vercel === undefined) vercel = keep(await confirm({ message: 'Add Vercel deploy config? (vercel.json — fixes real-path routing on Vercel)', initialValue: false }));
     if (tauri === undefined) tauri = keep(await confirm({ message: 'Desktop app? (Tauri — native window, ships the OS webview, needs Rust)', initialValue: false }));
   }
@@ -310,6 +328,7 @@ async function main() {
   if (daisyui === undefined) daisyui = false;
   if (vercel === undefined) vercel = false;
   if (tauri === undefined) tauri = false;
+  if (devtools === undefined) devtools = false; // non-TTY default: opt-in via --devtools
   if (tailwind) style = 'css';                  // Tailwind v4 is CSS-native (not SCSS)
   pm = pm || dpm;
   if (install === undefined) install = false;
@@ -342,6 +361,8 @@ async function main() {
   }
   const styling = daisyui ? DAISY_ADAPTER : tailwind ? TAILWIND_ADAPTER : null; // the theme adapter wired into muten.config
   const classes = daisyui ? DAISY_CLASSES : null;                               // the Form class map (DaisyUI only — it has component classes; Tailwind-only keeps mu-* + your own rules)
+  const plugins = devtools ? ['devtools'] : [];                                 // connectable plugins enabled in muten.config `plugins {}`
+  if (devtools) { addDev({ '@muten/devtools': '^0.0.1' }); appendAgents(DEVTOOLS_NOTE); } // dev-only overlay, auto-mounted by `muten dev`
   addDev({ '@iconify-json/lucide': '^1.2.0' }); // default icon set for `Icon "lucide:…"` (build-inlined). Add more sets with `npm i -D @iconify-json/<set>`.
   if (style === 'scss') addDev({ sass: '^1.101.0' });
   if (tauri) {                                  // native desktop wrapper around the same web build (dist)
@@ -360,10 +381,10 @@ async function main() {
     pkg.scripts = { ...pkg.scripts, tauri: 'tauri', 'tauri:dev': 'tauri dev', 'tauri:build': 'tauri build' };
     appendAgents(TAURI_NOTE(pm));
   }
-  if (styling) writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes })); // the build config, in muten (theme adapter + Form class map); css-only is zero-config
+  if (styling || plugins.length) writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes, plugins })); // the build config, in muten (plugins + theme adapter); css-only with no plugins is zero-config
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-  const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}`;
+  const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}`;
   if (!install) {
     if (process.stdin.isTTY) { note(`cd ${name}\n${pm} install\n${pm} run dev`, 'Next steps'); outro(color.green(`Created ${name}  (${desc})`)); }
     else console.log(`\n  Created ${name} (${desc}, ${pm})\n  cd ${name} && ${pm} install && ${pm} run dev\n`);

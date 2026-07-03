@@ -62,6 +62,7 @@ In an interactive terminal it prompts for a few things (defaults in parentheses)
 |---|---|---|
 | **Project name** | any valid folder name | `muten-app` |
 | **Styling** | `CSS` / `SCSS` / `Tailwind CSS` / `DaisyUI` (brings Tailwind) | `CSS` |
+| **Add DevTools?** | `Y` / `n` — in-app DevTools ([`@muten/devtools`](https://www.npmjs.com/package/@muten/devtools)), dev-only | `Y` |
 | **Add Vercel deploy config?** | `Y` / `n` | `n` |
 | **Desktop app (Tauri)?** | `Y` / `n` | `n` |
 | **Package manager** | `npm` / `pnpm` / `yarn` / `bun` | the one that launched it |
@@ -88,6 +89,12 @@ add one - e.g. `npm i @muten/shadcn`, then `muten add card dialog …` to copy t
 `plugins { shadcn {} }` in `muten.config` to import its parts as-is: the full [shadcn/ui](https://ui.shadcn.com)
 set ported to Muten. See [`@muten/shadcn`](https://www.npmjs.com/package/@muten/shadcn).
 
+**DevTools** are also a plugin — [`@muten/devtools`](https://www.npmjs.com/package/@muten/devtools), a dev-only
+in-app overlay (component tree, editable state, Redux-style history + time-travel, profiler, element picker) with
+**zero production cost**. Accept the *Add DevTools?* prompt (or pass `--devtools`) and `muten dev` auto-mounts it.
+Add it to an existing app any time with `muten add devtools` — it installs the package and enables it in
+`muten.config` (`plugins { devtools {} }`) for you.
+
 If you accept the last prompt it runs `<pm> install` followed by `<pm> run dev`, your app is live in a
 single step. Choosing SCSS also adds `sass` and switches the stylesheet to `.scss` automatically.
 
@@ -107,6 +114,7 @@ create-muten my-app --css --no-install    # just scaffold, decide later
 | `--css` / `--scss` | pick the stylesheet (default: `css`) |
 | `--tailwind` | add Tailwind CSS v4 on top of CSS (forces `--css`) |
 | `--daisyui` | add DaisyUI component classes (implies `--tailwind`) |
+| `--devtools` / `--no-devtools` | add (or skip) the in-app DevTools plugin `@muten/devtools` (default: added interactively) |
 | `--vercel` | add `vercel.json` (SPA fallback so real-path routes work on Vercel) |
 | `--tauri` | add `src-tauri/` - a native desktop app (needs the Rust toolchain) |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager to use (default: detected) |
