@@ -1,6 +1,6 @@
 {
   "name": "create-muten",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "description": "Scaffold a new Muten app.",
   "repository": {
     "type": "git",

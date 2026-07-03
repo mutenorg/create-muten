@@ -362,7 +362,7 @@ async function main() {
   const styling = daisyui ? DAISY_ADAPTER : tailwind ? TAILWIND_ADAPTER : null; // the theme adapter wired into muten.config
   const classes = daisyui ? DAISY_CLASSES : null;                               // the Form class map (DaisyUI only — it has component classes; Tailwind-only keeps mu-* + your own rules)
   const plugins = devtools ? ['devtools'] : [];                                 // connectable plugins enabled in muten.config `plugins {}`
-  if (devtools) { addDev({ '@muten/devtools': '^0.0.2' }); appendAgents(DEVTOOLS_NOTE); } // dev-only overlay, auto-mounted by `muten dev`
+  if (devtools) { addDev({ '@muten/devtools': '^0.0.3' }); appendAgents(DEVTOOLS_NOTE); } // dev-only overlay, auto-mounted by `muten dev`
   addDev({ '@iconify-json/lucide': '^1.2.0' }); // default icon set for `Icon "lucide:…"` (build-inlined). Add more sets with `npm i -D @iconify-json/<set>`.
   if (style === 'scss') addDev({ sass: '^1.101.0' });
   if (tauri) {                                  // native desktop wrapper around the same web build (dist)
