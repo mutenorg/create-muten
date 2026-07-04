@@ -39,7 +39,8 @@ The syntax is small; the real skill is the **boundaries** - pick the right home 
 | localStorage persistence | `persist` on the state | `use` + `localStorage` |
 | async data load | a `query` state | a `use` fn (it's synchronous) |
 | genuine foreign logic (date math, a lib, an SDK) | a **`use`** function | reimplementing a built-in |
-| a non-Muten visual widget (chart, map) | a **`Custom`** component | a React/Vue component (there are none) |
+| a chart / slider / date picker / drag&drop | a **native primitive** (`Chart`/`Range`/`Date`/`draggable`) | a `Custom` or a plugin (not needed - these are native) |
+| a widget muten truly can't express (map, rich-text editor, canvas) | a **`Custom`** component | a React/Vue component (there are none) |
 
 Rule of thumb: **declarative first** (`state`/`when`/`each`/`where`), **escape last** (`use`/`Custom`). When a piece
 is in the wrong place, `muten check` says so immediately - the boundaries are *enforced*, so you don't have to memorize them.
@@ -52,9 +53,9 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
 - **Component libraries via muten plugins - YES.** The core ships NO components; plugins do. Install a registry
   package (e.g. `npm i @muten/shadcn`), then either `muten add <component>` to copy its source into `src/parts/`
   (eject + own it, the shadcn way) OR declare `plugins { shadcn {} }` in `muten.config` to use its parts as-is.
-  Custom-backed widgets (sliders, calendars, charts) are `muten add`-only. See [`docs/plugins.md`](docs/plugins.md).
+  Plugins are for **styled component sets** (Card, Dialog, Tabs, …) - not for charts/sliders/dates, which are
+  native primitives (don't reach for a plugin to get a chart). See [`docs/plugins.md`](docs/plugins.md).
 - **Sass/SCSS** - supported out of the box if you scaffolded with SCSS (or add `sass`); use `src/styles.scss`.
-- **Any custom Vite/PostCSS plugin (rare)** - drop an OPTIONAL `vite.config.mjs` and run `muten dev --vite` / `muten bundle --vite`; by default no config is needed.
 - **Data / utility npm packages** - usable inside `.store` logic, inside `Custom` host components, and via
   **`use` logic imports** (date libs, fetch wrappers, zod, etc.).
 - **JS logic via `use … from "./lib.ts"` - YES.** Import named functions and call them in any expression
@@ -67,8 +68,12 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
   `Text "{ago(msg.time)}"`, `Text "{initial(user.name)}"`, `Text "{money(order.total)}"`,
   `Text "{date(msg.time)} at {time(msg.time)}"`. Timestamps are `text` (ISO strings); `ago`/`date`/`time` parse
   them. Only reach for `use` for logic a built-in does NOT cover (grouping, joins, custom parsing).
-- **Host UI via the `Custom` primitive** - write vanilla JS in `src/components/<Name>.js` (charts,
-  maps, a third-party widget) and mount it with `Custom`. See §Custom.
+  **Math (for SVG/Chart geometry):** `map(v, inLo, inHi, outLo, outHi)` (linear scale) · `sin` · `cos` · `sqrt` ·
+  `abs` · `round` · `floor` · `ceil` · `pow` · `min(a,b)` · `max(a,b)` · `pi()`. e.g. `Circle cy(map(p.val, 0, max, 190, 10))`,
+  a radial dot `cx(cx0 + r * sin(a.ang * pi() / 180))`. (`min`/`max` are 2-arg; the list min/max is `list.min by field`.)
+- **Host UI via the `Custom` primitive** - write vanilla JS in `src/components/<Name>.js` for a widget muten
+  can't express natively (a **map**, a **rich-text editor**, a **canvas** scene) and mount it with `Custom`.
+  (Charts, sliders and date pickers are native - `Chart`/`Range`/`Date` - don't `Custom` those.) See §Custom.
 
 ## 2. What you CANNOT do
 - **No React / Vue / Svelte - at all.** Muten ships ZERO framework runtime. Pages are `.muten` → vanilla DOM;
@@ -90,12 +95,19 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
 - **Forms** (`Form` auto-renders from an entity) render EVERY field - **no conditional fields** (gate the whole
   `Form` with a `when`, or split into per-step entities). Field types: `text`/`email`/`number`/`bool`(checkbox)/
   `enum`(select)/`date`/`password`/`textarea` - anything else (`url`/`tel`/file) is `unknown-field-type` (drop to
-  `Custom`). An **enum field can't be `required`**.
-  `SearchField` is the single bound text input.
+  `Custom`). An **enum field can't be `required`**. For a REAL form (conditional fields, per-step "next until valid"),
+  skip `Form` and hand-roll with the standalone inputs below + `when` + reactive `get`s (see docs/forms.md).
+- **Standalone bound inputs** (usable outside a `Form`): `SearchField`/`Password` (text state), `Select`
+  (text state + `options(a, b, c)`), `Checkbox` (bool state), `Number`/`Range` (a **number** state; `Range` is a
+  slider — `min(0) max(100) step(5)`, numbers or a state), `Date` (a date/text state — the native `<input type=date>`
+  calendar). Gate an action reactively with `disabled when <cond>` — e.g. `Button "Next" -> next disabled when pw.length < 8`.
+- **Inline-editable list items** — inside `each xs as x` (where `xs` is a mutable list state), an input can bind
+  a ROW FIELD: `SearchField bind(x.title)`, `Checkbox bind(x.done)`. Two-way: editing patches the source list
+  (keyed by id, caret-safe). This is how you build editable tables, inline-edit, AND **data-driven / JSON forms**
+  (fields from a `list<FieldSpec>`, each rendering `bind(f.value)`). A non-settable source (a `query`) → read-only.
 - **`match` for enums** - `match status { active -> Text "Active"  lead -> Span "Lead" class("badge") }` renders the matching arm
   (sugar for N `when status == "x"`). **`DataTable`** shows raw cell
-  text (no per-column formatting - use `each` + `Stack` for formatted/badge cells). **No standalone `Select`** (Form
-  makes one for enum fields; elsewhere build a button group + `class(active when …)`). **`sort by`** takes a
+  text (no per-column formatting - use `each` + `Stack` for formatted/badge cells). **`sort by`** takes a
   field name, OR a `text` **state** holding the field name for a user-chosen column (`sortDesc by sortCol`).
 - **`query x live`** needs the server to send a stable `id` per row, or keyed diffing rebuilds every row each push.
 - **`Custom` inputs are a snapshot at mount** (reactive only if `mount` returns an updater fn - §13). **Shell has no local state** (use a `.store`).
@@ -257,11 +269,28 @@ A bare string is the node's main prop. `{ }` = children. Style everything (layou
 | `Link` | client-side nav | `Link "Catalog" -> "/catalog"` |
 | `Button` | runs an action | `Button "Save" -> save(draft)` |
 | `SearchField` | text input bound to state | `SearchField bind(q) "Search…"` |
+| `Password` | masked text input bound to a text state | `Password bind(pw) "Password"` |
+| `Select` | dropdown bound to a text state; fixed `options()` | `Select bind(role) options(admin, member) "Role"` |
+| `Checkbox` | checkbox bound to a bool state, clickable label | `Checkbox bind(agree) "I accept"` |
+| `Number` | numeric input bound to a number state | `Number bind(qty) min(1) max(99)` |
+| `Range` | slider bound to a number state | `Range bind(volume) min(0) max(100) step(5)` |
+| `Date` | native date picker bound to a date/text state | `Date bind(due)` |
 | `Form` | auto-form from an entity draft | `Form bind(draft) submit(create) "Save"` |
 | `DataTable` | table over a list/query (`@` sigil; raw cells, no per-column format) | `DataTable @users columns(name, email)` |
+| `Chart` | native dataviz (SVG, no JS): title + `kind` (bar/line/area/point/**scatter/pie/donut**) + `x`/`y`/`color`; axes/legend auto | `Chart @sales "Revenue" kind(pie) x(month) y(revenue)` |
+| `Svg` + `Rect`/`Line`/`Circle`/`Arc`/`Path`/`Group` | native vector layer (the escape UNDER Chart): marks from data, coords are number exprs (`map` scales); `Arc` = pie/donut/gauge | `Svg viewBox("0 0 200 120") { Arc cx(100) cy(105) r(85) start(-90) end(map(v,0,100,-90,90)) inner(58) } }` |
 | `RowAction` | a button inside each table row | `RowAction "Delete" -> remove(row.id)` |
 | `slot` | outlet inside `shell` or `part` | `slot` |
-| `Custom` | host-JS escape hatch | `Custom Chart inputs(data: sales) on(pick: select)` |
+| `Custom` | host-JS escape (map / rich-text / canvas - NOT charts, those are native) | `Custom Map inputs(markers: places) on(markerClick: select)` |
+
+**The `@` data source (`DataTable @x`, `Chart @x`, `Custom … inputs(data: @x)`)** binds ANY list source: a page
+`state`/`query`, a page **`get`** (a derived list), OR a **store list** (`@orders.items`, when `items` is a
+store `state` list - a store **`query`** member is the `{loading,data,error}` wrapper, so expose its array via
+a `get` first, same as on a page; see [Stores](docs/stores.md#reading-a-query-through-a-store)). So the store-centric
+pattern works directly - `get topCustomers = customers.sort by revenue` then `Chart @topCustomers …`; no mirroring
+a `get` into a page `state` via an `effect`. **`Chart` draws one mark per row and does NOT auto-group** - for a
+categorical chart (revenue *by category* from per-order rows), pre-group into a `get` first (grouping is a one-line
+`use` fn; see [patterns.md](patterns.md#categorical-chart-from-transactional-data-revenue-by-category)).
 
 Horizontal layout = a region with `class("flex flex-row")` (a `Stack` is flex-column by default; there is no
 `Row` primitive). Clickable card = `Button { … }` or `Link "" -> "/x" { … }` with children instead of a label.
@@ -273,7 +302,21 @@ a real list (menu, feed, results, steps) → **`List`** (an `each` inside it bec
 grouping. Bullets are off under `flex`/`grid`; add `class("list-disc list-inside")` to keep them.
 
 Modifiers (after a primitive): `class("css")` · `bind(state)` · `submit(action)` ·
-`where(clauses)` · `columns(a, b)` · `alt("…")` · `inputs(k: v)` · `on(event: action)` · `aria(k: expr)`.
+`where(clauses)` · `columns(a, b)` · `options(a, b)` · `alt("…")` · `inputs(k: v)` · `on(event: action)` · `aria(k: expr)` ·
+`draggable(item.id)` + `droptarget("group")` (drag & drop: the card carries an id, the drop zone fires
+`on(drop: move)` → `move(draggedId, "group")` — muten owns the data via `patch`; zero JS). **`on()` passes a
+table-driven payload**: `on(input: setName)` → `setName(value)`, `on(keydown: f)` → `f(key)` (an action with no arg ignores it).
+`disabled when <cond>` (real `disabled` on a Button/input — gate "next until valid"; `disabled` alone = always) ·
+`kind(bar|line|area|point)` + `x(field)` `y(field)` `color(field)` (Chart encodings — see the primitives table).
+**Charts couple to `theme.muten`** like everything else: muten emits the SVG marks with CSS classes you style —
+`.mu-chart-bar`/`-line`/`-area`/`-dot`, `.mu-chart-grid`/`-tick`/`-xlabel`, `color(field)` → `.mu-chart-s0…sN`. A clean
+default is scaffolded (`CHART_CSS` in `src/styles.css`). **Nothing is hardcoded** — both color AND layout read tokens,
+so a `theme.muten` **`chart {}`** section reconfigures everything with no code change:
+`chart { fill "#…"  "bar-radius" "8px"  "grid-dash" "2 2"  ticks "6"  "bar-gap" "0.2"  "donut-inner" "0.65"  w "360" h "220"  "pad-left" "44" }`
+→ `--chart-fill` / `--chart-bar-radius` / `--chart-grid-dash` (CSS-read) + `--chart-ticks` / `--chart-bar-gap` /
+`--chart-donut-inner` / `--chart-w` / `--chart-h` / `--chart-pad-*` (the runtime reads these for scale/axes/viewBox).
+Plus `colors { chart-1…N }` for the series palette. For a one-off look, scope your own class on the Chart:
+`Chart @d kind(bar) … class("my-style")` + `.my-style .mu-chart-bar { rx: 6px; fill: … }`.
 `class()` also toggles reactively (`class(active when isOpen)`); a **hyphenated OR multi-class** name must be QUOTED
 in a reactive toggle: `class("is-open" when x)`, `class("ring-2 ring-primary" when x)` (each token toggles
 independently; bare `is-open` parses as a subtraction and errors). Stack several toggles on one node freely.
@@ -372,11 +415,13 @@ Everything (layout AND look) is a `class("...")`. Two equivalent backings - pick
   - **Edit / move / toggle an item in place**: `list.patch where id == c.id with { done: not done }` - position-preserving, list ONLY the changed fields. This is the right tool for toggle/update/move (NOT remove+push, which reorders the item to the end).
   - **Item fields are bare inside `where`/`with`** (item-implicit, like a `where`-filter). So a param must be named DIFFERENTLY from any field: `remove where id == id` is an error (both mean the field) - write `remove where id == itemId` with the param named `itemId`. The oracle flags the clash and tells you to rename.
 - Control flow in the tree: `when <expr> { … }` (mount/unmount), `each <list> as item { … }` (item is a scope var). Filter a list with `where`: `each posts as p where p.published { … }` renders only matching items.
+  - **Row index** - `each <list> as item, i { … }` adds `i`, the item's **0-based position** as a *reactive* number (it reindexes when the list reorders/filters). Use it for rank/numbering (`Text "{i + 1}. {item.name}"`), a top-N highlight (`class("top" when i < 3)`), or medals (`when i == 0 { … }`). Combine with sort for a live leaderboard: `each players.sortDesc by score as p, i` → `i` is the rank. Don't bake a position into your data - it goes stale on reorder; `i` never does.
 - Expressions: `== != < > <= >=`, `and or not`, `contains` (case-insensitive substring / list membership),
   `+ - * /`, ternary `c ? a : b`, parentheses, refs (`user.name`, `cart.total`, `$item.x`).
 - **List aggregates** - `by` projects a value per item, `where` is a predicate; item fields are bare (item-implicit). For a cart total / KPI count / "N active", NO JS needed:
   - `lines.sum by price * qty` · `todos.count where not done` · `reviews.avg by score` · `prices.min by amount` · `prices.max by amount`.
   - `.length` is the count-all; `count where cond` is the filtered count. Works in interpolation, `when`, and a `get`.
+  - **`.length` on a text value** = its character count (`pw.length >= 8`, `q.length > 0`) — a real length gate, no `use` needed.
   - **Embedding in a bigger expression needs grouping `()`** (the `by`/`where` body runs to the end): `when (todos.count where not done) > 0 { … }`. Standalone (in a `get`) needs none: `get openCount = todos.count where not done`.
 - **Membership - "is it selected / favorited / in the set"** - store the IDs as a **scalar list** and use `contains`:
   `state { favs = [] : list<number> persist }` (in a `.store` file), then `when favs contains movie.id { … }` or `class("on" when favs contains movie.id)`.
@@ -391,6 +436,11 @@ Everything (layout AND look) is a `class("...")`. Two equivalent backings - pick
 - **Paginate / top-N** - `list.take(n)` returns the first `n` items (`n` = a literal or a `number` state). A
   reactive "load more": `get page = posts.take(limit)` + a button that bumps `limit`. Chains after sort:
   `posts.sortDesc by date` then `.take(10)` = "latest 10".
+- **Element at a position** - `list.at(n)` returns the item at index `n` (negative counts from the end; out of
+  range → nothing). Read a field of it with `list.at(n).field`. This is the dual of `each … , i`: `i` renders a
+  position, `at(n)` reads one. It's what powers keyboard selection in a **combobox** (see docs/lists.md):
+  `get matches = cities where name contains q` + `each matches as c, i` for the highlight + `matches.at(hi).name`
+  to commit the highlighted row on Enter.
 - **Add ⇄ remove from a set** - `list.toggle(x)` in an action adds `x` if absent, removes if present (the
   un-favorite / unsubscribe that a scalar `remove where` can't do): `action fav(id: number) mutates favs { favs.toggle(id) }`.
 - **`match` for enums** (sugar over N `when`): renders the arm whose value the subject equals. Each arm is `value -> node`
@@ -509,14 +559,16 @@ part Feature(item: Feature, onPick: action) {
 ```
 
 ## 13. Custom - the host-JS escape hatch
-For anything Muten can't express (a chart, a 3rd-party widget), write vanilla JS in
-`src/components/<Name>.js` and mount it with `Custom`. It receives `inputs` (values/state) and wires
-DOM events to your actions via `on`. This is the ONLY way to use non-Muten UI code.
+For a widget Muten genuinely can't express - a **map** (pan/zoom/tiles), a **rich-text editor**, a **canvas**
+scene - write vanilla JS in `src/components/<Name>.js` and mount it with `Custom`. It receives `inputs`
+(values/state) and wires DOM events to your actions via `on`. This is the ONLY way to use non-Muten UI code.
+**Not for charts, sliders or date pickers** - those are native (`Chart`/`Range`/`Date`); using `Custom` for them
+throws away the oracle and ships needless JS.
 ```
-Custom Chart inputs(data: @sales) on(pointSelect: select)
-# → src/components/Chart.js defines `function mount(el, inputs, on) { ... }` (NOT `export` - see below).
-#   THREE positional args: el = the host <div>, inputs = { data }, on = { pointSelect }.
-#   Call a handler with `on.pointSelect(payload)`; read a value with `inputs.data`.
+Custom Map inputs(markers: @places) on(markerClick: select)
+# → src/components/Map.js defines `function mount(el, inputs, on) { ... }` (NOT `export` - see below).
+#   THREE positional args: el = the host <div>, inputs = { markers }, on = { markerClick }.
+#   Call a handler with `on.markerClick(payload)`; read a value with `inputs.markers`.
 ```
 - Signature is **`mount(el, inputs, on)`** (three positional args), NOT `mount(el, { inputs, on })`.
 - Define it as a plain `function mount(...)`, **not** `export function mount` - the file is inlined, so an
@@ -558,8 +610,9 @@ needs a `Custom` component" pattern. Keep the border **synchronous** (no async/`
 `query` / `create` / `update` / `delete` (those are async with `.pending`/`.error`).
 
 Import zod/date-fns/nanoid/whatever *inside* `format.ts` and expose tidy named functions; Muten sees only the
-names, so the oracle still checks your calls. For a visual widget Muten can't express (a chart, a map, a
-date-picker), drop to a vanilla-JS `Custom` (§13) - there is no framework-component escape; Muten owns the whole UI.
+names, so the oracle still checks your calls. For a visual widget Muten can't express natively (a **map**, a
+**rich-text editor**, a **canvas** scene - but NOT a chart/slider/date, those are native), drop to a vanilla-JS
+`Custom` (§13) - there is no framework-component escape; Muten owns the whole UI.
 
 ## 15. Gotchas
 - It is NOT JSX - PascalCase primitives + `{ }` children; no JSX/hooks/`className` anywhere.

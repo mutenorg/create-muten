@@ -114,6 +114,8 @@ Nav class("nav-pill") {
 }
 Stack class("pad-xl") { slot }
 ```
+`.is-active` above is applied **automatically** by the router (the current page's link gets `aria-current="page"`
++ `is-active`) - you don't write `class(active when …)` to wire it up.
 **Tailwind** equivalent:
 ```
 Nav class("fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50 shadow-lg shadow-black/5") {

@@ -12,8 +12,8 @@ Every keyword, grouped by role. Keywords are **lowercase**.
 | `store` | `.store` file | app-global reactive cells |
 | `const` | page / store | a compile-time immutable scalar: `const TAX = 0.21` |
 | `theme` | `theme.muten` | design values → CSS vars |
-| `get` | store | a memoized derived value: `get count = items.length` |
-| `effect` | store | a reactive side-effect block |
+| `get` | page / store | a memoized derived value: `get count = items.length` (valid on a page too, not only in a `.store`) |
+| `effect` | page / store | a reactive side-effect block (on-mount init; also derives state where a `get` can't) |
 | `action` | page / store | a mutation: `action add(x: T) mutates list { … }` |
 | `mutates` | on an action | the state(s) the action may change (enforced) |
 | `mock` | page | inline test data for a `query` |
@@ -35,6 +35,7 @@ Every keyword, grouped by role. Keywords are **lowercase**.
 |---|---|
 | `when <expr> { … }` | conditional mount/unmount |
 | `each <list> as <item> { … }` | list render (item is a scope var) |
+| `each <list> as <item>, <i> { … }` | list render + `i` = the item's 0-based reactive position (rank when sorted) |
 | `match <enum> { v -> node }` | render the matching enum arm |
 | `as` | names the item in `each` / the alias in some forms |
 | `if` / `else` | branching **inside an action body** (the only place) |

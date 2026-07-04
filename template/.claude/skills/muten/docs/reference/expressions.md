@@ -62,6 +62,11 @@ Text "Open: {todos.count where not done}"
 `when (todos.count where not done) > 0 { … }`. Standalone in a `get` needs none:
 `get openCount = todos.count where not done`. See [Lists § aggregates](../lists.md#aggregates).
 
+**Text `.length`** - a text-typed value (`text`/`email`/`uuid`/`date`/`password`/`textarea`) also exposes
+`.length`, its **character** count, usable anywhere an expression is: `when pw.length >= 8`,
+`get ok = q.length > 0`, `Text "{name.length}/50"`. Numbers and booleans have none. (`list.length` above is the
+**item** count - unchanged.)
+
 ## Built-in functions
 
 A fixed set of formatting functions is **always available** - no `use`, no import. They cover the universal

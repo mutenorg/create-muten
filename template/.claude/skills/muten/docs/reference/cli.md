@@ -4,8 +4,8 @@ The `muten` binary ships with the app (it's a dependency of `@muten/core`). Run 
 npm script.
 
 ```sh
-muten dev    [dir] [--vite]              # dev server (native esbuild + live reload; serves /_muten/graph)
-muten bundle [dir] [--vite]              # production CSR build (per-route chunks + a ship-size report - each route's gzip size, so bloat is visible)
+muten dev    [dir]                       # dev server (native esbuild + surgical HMR; serves /_muten/graph)
+muten bundle [dir]                       # production CSR build (per-route chunks + a ship-size report - each route's gzip size, so bloat is visible)
 muten build  [dir] [--url=https://site.com]   # static SSG → crawlable HTML per route
 muten check  [dir] [--json] [--watch]    # the oracle; --watch re-lints the app on every change
 muten map    [dir] [--json]
@@ -16,12 +16,9 @@ muten add    <component...>              # copy components from an installed reg
 
 ## `muten dev`
 
-Starts the **dev server**: muten's own engine (esbuild) compiles your `.muten` on the fly - per-route chunks,
-the live oracle, theme + Tailwind, client-side routing, and full-reload on save. No Vite, no config. This is
-what `npm run dev` runs.
-
-> `--vite` runs the legacy Vite engine instead (a fallback). The native engine handles CSS, SCSS (via `sass`),
-> and Tailwind; reach for `--vite` only if you need a custom Vite/PostCSS plugin.
+Starts the **dev server**: muten's own runner (embedded esbuild) compiles your `.muten` on the fly - per-route
+chunks, the live oracle, theme + Tailwind, client-side routing, and **surgical HMR** on save (edit a node → only
+that node re-renders; state survives). No Vite, no bundler config. This is what `npm run dev` runs.
 
 A compile error (syntax or oracle) shows a code-frame in the terminal AND a browser overlay (file:line:col +
 "did you mean"); an uncaught **runtime** error shows its own overlay. The dev server also serves
@@ -33,7 +30,7 @@ The **production CSR build** (esbuild): bundles the SPA (your `use` functions, `
 cross-page state) to `./dist/` with per-route code-splitting + source maps, writes **`dist/app.map.json`** (the
 app graph), and prints a **per-route ship report** (each route's JS + gzip, so bloat is visible). This is what
 `npm run build` runs - the path for a **stateful** app. (For a zero-JS static export instead, use `muten build`
-below.) `--vite` for the legacy engine.
+below.)
 
 ## `muten build`
 
@@ -88,8 +85,8 @@ copies its `.muten` (and, for a Custom-backed component, its host `.js` into `sr
 dependencies. The alternative is to import a plugin's parts as-is via `plugins {}` in `muten.config`.
 
 ```sh
-muten add card badge dialog      # parts -> src/parts/
-muten add slider calendar        # Custom widgets -> src/parts/ + src/components/
+muten add card badge dialog      # styled parts -> src/parts/
+muten add carousel map-embed     # Custom-backed widgets -> src/parts/ + src/components/ (charts/sliders/dates are native - no add needed)
 ```
 
 See [Plugins & component libraries](../plugins.md).

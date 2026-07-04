@@ -37,6 +37,9 @@ region linked via `aria-describedby` + announced with `aria-live="polite"`. See 
 - `SearchField` gets an accessible name (its placeholder, or `"Search"`).
 - The **shell** emits a keyboard **skip-link** as its first element, and focus moves to `<main>` on client-side
   navigation - so keyboard and screen-reader users land on the new page's content, not back at the top of the chrome.
+- The **router** marks the current nav link automatically: any internal `<a>` whose `href` equals the current
+  path gets `aria-current="page"` and the class `is-active` - style it in CSS, you don't hand-wire it (see
+  [Routing § Active link](routing.md#active-link---automatic)).
 
 ### What is deliberately NOT automatic
 `aria-live` is **not** put on every `when`/`each` - blanket live regions are *bad* a11y (they announce
@@ -87,6 +90,9 @@ aria(hidden: true)            # aria-hidden
 ```
 
 Any `aria-*` attribute works - the key after `aria(` is whatever follows `aria-` in HTML.
+
+> Skip `aria(current: "page")` for **nav highlighting** - the router already sets it (see above). Reach for it
+> yourself only outside nav, e.g. marking the current step of a stepper.
 
 ## See also
 - [Forms & validation](forms.md) - the accessible form the compiler builds for you.

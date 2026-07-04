@@ -92,7 +92,7 @@ children spliced in, zero runtime, identical bundle.
 | Need | Reach for |
 |---|---|
 | Repeat a chunk of **Muten** UI (a card, a stat, a nav item) | a **`part`** |
-| A widget Muten can't express (a chart, a map) | a [`Custom`](escapes.md) |
+| A widget Muten can't express natively (a map, a rich-text editor - NOT a chart, that's the native `Chart`) | a [`Custom`](escapes.md) |
 
 A part is pure Muten - it stays inside the language and the oracle. Use it to DRY a repeated row (one template,
 N calls) instead of copy-pasting; it's fewer tokens for the same bundle (the part inlines, so the output is

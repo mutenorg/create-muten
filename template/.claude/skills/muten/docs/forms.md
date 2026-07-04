@@ -131,8 +131,131 @@ into `src/styles.css`, override freely):
 - `Form` renders **every** field, in declaration order, with **no conditional fields**. To branch, gate the
   whole `Form` with a `when`, or split the entity (e.g. a multi-step wizard = one entity per step).
 - An **`enum` field cannot be `required`** (a select always has a value).
-- No nested entities or field arrays inside one `Form`. For a fully bespoke form, don't use `Form` - build
-  the inputs yourself with `SearchField bind(field)` + `aria(...)`, and validate in the action.
+- No nested entities or field arrays inside one `Form`. For a fully bespoke form (conditional fields, per-step
+  gating), don't use `Form` - build it from the [standalone inputs](#standalone-inputs--real-forms) below.
+
+## Standalone inputs & real forms
+
+`Form` is a shortcut: it renders **every** field, in order, and validates **only on submit** - there is no way
+to put `disabled when` on its generated submit button. So **"a Save button disabled until the form is valid"
+and `Form` are mutually exclusive**: the moment you need that, skip `Form` and hand-roll with standalone
+inputs, a `get valid = …`, and `Button "Save" -> save disabled when not valid` (see the
+[recipe below](#hand-rolled-single-record-form)). The same goes for conditional fields or per-step gating
+("disable Next until this step is valid") - any live gating needs the standalone controls. The same controls a
+`Form` renders are also standalone [primitives](reference/primitives.md), each two-way bound to a `state`:
+
+| Primitive | Binds | Renders |
+|---|---|---|
+| `SearchField bind(q) "…"` | text | `<input type=search>` |
+| `Password bind(pw) "Password"` | text | masked `<input type=password>` |
+| `Select bind(role) options(founder, engineer, other) "Pick a role"` | text | `<select>` - `options` is the value list, the string is the empty prompt |
+| `Checkbox bind(agree) "I accept the terms"` | bool | `<input type=checkbox>` in a clickable `<label>` |
+
+The oracle enforces the bind type (`Password`/`Select` → a **text** state, `Checkbox` → a **bool** state); a
+mismatch or a missing state is a `bind-type` error. Compose them with the pieces you already have:
+
+- **`when`** shows/hides a field reactively - the conditional field `Form` can't do.
+- A reactive **`get`** is your per-step validity: derive it once, name it, reuse it.
+- **`disabled when <cond>`** gates the button on that `get` (the real, reactive `disabled` prop).
+
+```muten
+state { pw = "" : text  agree = false : bool  step = 1 : number }
+get strong = pw.length >= 8
+action next mutates step { if strong and agree { step.set(2) } }
+
+Page class("flex flex-col gap-4 p-6") {
+  Password bind(pw) "Password"
+  when strong { Text "Strong enough" class("text-green-600") }
+  Checkbox bind(agree) "I accept the terms"
+  Button "Next" -> next disabled when not strong or not agree
+}
+```
+
+This replaces the old hand-roll - a fake `disabled` CSS class + `aria(disabled: …)` + an in-action guard - with
+one reactive `disabled when`.
+
+**Trade-off.** Hand-rolling means the entity's declared constraints (`required`/`min`/`max`/`pattern`/the
+automatic `email` check) are **not** auto-enforced anymore - there's no entity draft in the loop, so you
+re-express each rule yourself in the `get` (the way `strong` re-expresses "8+ characters" above).
+
+### Hand-rolled single-record form
+
+`bind(x.field)` is documented only **inside `each`** (a row of a list). To hand-roll a form over ONE entity
+draft, skip the entity/`state {} : Entity` draft too - hold each field as its own scalar state, validate with a
+`get`, and build the record inline in the action:
+
+```muten
+entity Contact { name text required  email email required }
+state { items = [] : list<Contact>  name = "" : text  email = "" : text }
+get valid = name.length > 0 and email.length > 0
+
+action save mutates items, name, email {
+  items.push({ name: name, email: email })     # build the record inline - no draft entity, no bind(draft)
+  name.reset()
+  email.reset()
+}
+
+Page class("flex flex-col gap-3 p-6") {
+  SearchField bind(name)  "Name"
+  SearchField bind(email) "Email"
+  Button "Save" -> save disabled when not valid
+}
+```
+
+For an **edit**, `items.update({ id: c.id, name: name, email: email })` needs the row's `id` restated in the
+literal - and since Muten has no object-spread, you restate **every** field, not just the one the user changed.
+
+## Data-driven / JSON forms
+
+When the **fields themselves are data** - a schema fetched from a server, a settings blob, a form the user
+shapes - don't hand-write the controls: drive them from a `list<FieldSpec>` and render each row with `each` +
+`match`. Because an inline [`bind(f.value)`](lists.md#inline-editable-list-items--bindxfield) writes back into
+the source list, the schema is a **single source of truth**: editing a control patches that same `list`, and a
+second `each` over it (a live JSON / preview panel) moves in lockstep - no wiring between them.
+
+```muten
+screen builder
+
+entity FieldSpec {
+  label   text
+  kind    text | email | number | bool     # the enum that picks the control
+  value   text
+  checked bool
+}
+
+state {
+  schema = [
+    { id: "f1", label: "Full name", kind: "text",  value: "", checked: false }
+    { id: "f2", label: "Email",     kind: "email", value: "", checked: false }
+    { id: "f3", label: "Subscribe", kind: "bool",  value: "", checked: true  }
+  ] : list<FieldSpec>                        # seed explicit ids -> stable rows while editing
+}
+
+Page class("flex flex-row gap-8 p-6") {
+  # the generated form - one control per row, bound to that row
+  List class("flex flex-col gap-3") {
+    each schema as f {
+      match f.kind {
+        text   -> SearchField bind(f.value) "{f.label}"
+        email  -> SearchField bind(f.value) "{f.label}"
+        number -> SearchField bind(f.value) "{f.label}"
+        bool   -> Checkbox bind(f.checked) "{f.label}"
+      }
+    }
+  }
+  # a live preview over the SAME state - updates as you type
+  List class("flex flex-col gap-1") {
+    each schema as f { Text "{f.label}: {f.value}" }
+  }
+}
+```
+
+Editing any control patches `schema` by `id`, so the form and the preview stay in sync for free.
+
+**The honest bound.** This covers a **flat** field list (label + kind + value) - the shape of most settings
+panels and JSON forms. A truly arbitrary or **deeply nested** schema (field groups, arrays of sub-forms,
+conditional trees) is past what `each` + `match` should express: build it as a dedicated primitive or drop it
+to a [`Custom`](escapes.md). Keep the declarative path for the flat 80%.
 
 ## See also
 - [State & reactivity](state.md) - how the bound draft works.

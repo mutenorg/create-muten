@@ -47,7 +47,7 @@ a { color: inherit; text-decoration: none; }
    interactive control, so it gets no focus ring when clicked/focused. */
 #mu-main:focus { outline: none; }
 `;
-// CSS + Tailwind v4: one @import + the @tailwindcss/vite plugin. Preflight does the reset, so this stays
+// CSS + Tailwind v4: one @import; the native runner compiles it in-process (Tailwind v4). Preflight does the reset, so this stays
 // minimal — only `.mu-stack` (Muten's Stack primitive; `mu-` so it never collides with DaisyUI's own
 // `.stack`). You style via class("…").
 const tailwindStyles = (daisyui) => `@import "tailwindcss";${daisyui ? '\n@plugin "daisyui";' : ''}
@@ -115,6 +115,38 @@ const FORM_CSS = `
 .mu-submit { padding: 9px 14px; border: none; border-radius: var(--radius-md, 8px); cursor: pointer; font-weight: 600; font-size: 14px;
   background: var(--color-primary, #4f46e5); color: var(--color-onprimary, #ffffff); }
 .mu-submit:hover { filter: brightness(1.08); }
+`;
+// Chart baseline (Chart primitive + Svg marks). A clean, shadcn-flavoured default so charts look good with ZERO
+// CSS. Every value reads a token: theme.muten can drive the whole look via a `chart {}` section (`--chart-*`) or
+// its `colors {}` (`--color-*`), with hardcoded fallbacks so it works out of the box. Override any rule freely.
+const CHART_CSS = `
+/* — muten chart baseline (override, or theme via theme.muten \`chart {}\` / \`colors {}\`) — */
+.mu-chart-wrap { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.mu-chart { width: 100%; height: auto; display: block; }
+.mu-chart-title { font-size: 14px; font-weight: 600; color: var(--color-text, #18181b); }
+.mu-chart-bar, .mu-chart-dot { fill: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); }
+.mu-chart-bar { rx: var(--chart-bar-radius, 4px); }
+.mu-chart-line { fill: none; stroke: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke-width: 2; }
+.mu-chart-area { fill: var(--chart-fill, var(--color-primary, #6366f1)); fill-opacity: 0.15; }
+.mu-chart-slice { fill: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke: var(--color-bg, #ffffff); stroke-width: 1.5; }
+.mu-chart-grid { stroke: var(--color-border, #e5e7eb); stroke-dasharray: var(--chart-grid-dash, 3 4); opacity: 0.6; }
+.mu-chart-tick, .mu-chart-xlabel { fill: var(--color-muted, #9ca3af); font-size: 9px; font-family: ui-monospace, monospace; }
+.mu-chart-s0 { --c: var(--color-chart-1, #6366f1); } .mu-chart-s1 { --c: var(--color-chart-2, #8b5cf6); }
+.mu-chart-s2 { --c: var(--color-chart-3, #10b981); } .mu-chart-s3 { --c: var(--color-chart-4, #f59e0b); }
+.mu-chart-s4 { --c: var(--color-chart-5, #ef4444); } .mu-chart-s5 { --c: var(--color-chart-6, #06b6d4); }
+.mu-chart-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--color-muted, #9ca3af); }
+.mu-chart-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.mu-chart-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); }
+`;
+// Drag & drop baseline (draggable/droptarget). muten's DnD is pointer-based with a floating clone; ALL visuals
+// are these CSS classes — restyle freely. Nested drop zones are handled by the runtime (innermost wins).
+const DND_CSS = `
+/* — muten drag & drop (override freely; behavior via CSS vars, nothing hardcoded) — */
+.mu-dnd-item { cursor: grab; --mu-dnd-activation: 5; --mu-dnd-z: 9999; } /* px to move before a drag starts (clicks stay clicks) + overlay z-index */
+.mu-dnd-item:active { cursor: grabbing; }
+.mu-dnd-ghost { opacity: 0.4; }                                             /* the source, dimmed while dragging */
+.mu-dnd-overlay { cursor: grabbing; rotate: 2deg; opacity: 0.96; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.mu-dnd-over { outline: 2px dashed var(--color-primary, #6366f1); outline-offset: -2px; }
 `;
 // muten.config (muten syntax) composed from the chosen options. The styling block is the theme ADAPTER for
 // the chosen library: muten emits theme.muten in that format. Selectors drop the trailing ` {` and use single
@@ -350,13 +382,13 @@ async function main() {
   const appendAgents = (text) => { const f = join(target, '.claude', 'AGENTS.md'); if (existsSync(f)) writeFileSync(f, readFileSync(f, 'utf8') + text); };
 
   if (tailwind) {
-    writeFileSync(join(target, 'src', 'styles.css'), tailwindStyles(daisyui) + WELCOME_CSS + FORM_CSS);
+    writeFileSync(join(target, 'src', 'styles.css'), tailwindStyles(daisyui) + WELCOME_CSS + FORM_CSS + CHART_CSS + DND_CSS);
     writeFileSync(join(target, 'theme.muten'), daisyui ? DAISY_THEME : TAILWIND_THEME); // seed the theme skeleton for the chosen library
-    addDev({ tailwindcss: '^4.0.0', '@tailwindcss/vite': '^4.0.0' });
+    addDev({ tailwindcss: '^4.0.0', '@tailwindcss/node': '^4.0.0', '@tailwindcss/oxide': '^4.0.0' }); // the native runner drives Tailwind v4 in-process (@tailwindcss/node + oxide), not the Vite plugin
     if (daisyui) addDev({ daisyui: '^5.0.0' });
     appendAgents(TAILWIND_NOTE + (daisyui ? DAISY_NOTE : ''));           // tell the AI what styling is available
   } else {
-    writeFileSync(join(target, 'src', style === 'scss' ? 'styles.scss' : 'styles.css'), RESET + WELCOME_CSS + FORM_CSS);
+    writeFileSync(join(target, 'src', style === 'scss' ? 'styles.scss' : 'styles.css'), RESET + WELCOME_CSS + FORM_CSS + CHART_CSS + DND_CSS);
     writeFileSync(join(target, 'theme.muten'), EMPTY_THEME);             // no framework -> empty theme.muten (you fill it; muten emits :root vars)
   }
   const styling = daisyui ? DAISY_ADAPTER : tailwind ? TAILWIND_ADAPTER : null; // the theme adapter wired into muten.config

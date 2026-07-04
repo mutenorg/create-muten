@@ -47,8 +47,9 @@ before it ever runs in a browser.
 
 Muten shines when an **AI builds and maintains** the app and the app is the **declarative 80%**: CRUD, SaaS,
 dashboards, catalogs, internal tools, content sites. It reaches the rest of the web platform through bounded,
-checked [escapes](escapes.md) (`class()`, `Custom`, `use`) - so "hard widgets" (charts, maps, pickers) land in
-vanilla JS without a framework runtime.
+checked [escapes](escapes.md) (`class()`, `Custom`, `use`). Many once-"hard" widgets are now native primitives
+(charts, sliders, date pickers, drag&drop, an SVG layer); only the irreducible ones (maps, rich-text editors,
+canvas) land in vanilla JS via `Custom` - without a framework runtime.
 
 It is **not** the tool for a hand-crafted, highly-custom UI that needs the full React/Vue/Svelte ecosystem and
 a deep human team - and it doesn't pretend to be. Muten wins on a different axis (bytes shipped + AI cost),

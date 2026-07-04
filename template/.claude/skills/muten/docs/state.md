@@ -33,7 +33,11 @@ here would crash `each` at runtime with "not iterable".
 
 An **enum** is not a state type - it lives as a field inside an `entity`; hold its current value as `text`.
 
-A `get` (derived value) **cannot reference itself**, directly or through another `get` - a cycle compiles to a
+**Derived values - `get` (works on a page, not only in a `.store`).** A `get <name> = <expr>` next to your
+`state` is a memoized computed - use it for anything derived (a filtered/sorted list, a running total, a KPI):
+`get matches = items where name contains q`, `get revenue = orders.sum by amount`. Prefer a `get` over recomputing
+inline, and it can feed a `@` primitive directly (`Chart @revByCat`, `DataTable @matches`). A `get` (derived value)
+**cannot reference itself**, directly or through another `get` - a cycle compiles to a
 "cannot access before initialization" crash, so the oracle rejects it (`get-cycle`).
 
 ## Reactivity - how it updates

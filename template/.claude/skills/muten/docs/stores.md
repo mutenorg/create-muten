@@ -29,6 +29,27 @@ Button "☰" -> ui.toggleMenu
 | `get name = <expr>` | a **memoized** derived value (recomputes when its inputs change) |
 | `action … mutates …` | a global mutation (same op set as a page action) |
 | `effect { … }` | a reactive side-effect - re-runs when the store state it reads changes (Angular-style) |
+| `query` + `sources` | an async data fetch - legal in a store, not only on a page |
+
+## Reading a `query` through a store
+
+A store can own its domain's data fetch too - `query` + `sources` aren't page-only:
+
+```muten
+# src/products.store
+state   { items = query items : list<Product> }
+sources { items: { url: "/products", at: "data" } }
+
+get list = items.data     # the array - read products.list, NOT @products.items directly
+```
+
+A store `query` still exposes `.data`/`.loading`/`.error`, not the array itself - `@products.items` on a query
+member is that `{loading,data,error}` wrapper, same as on a page. Expose the array with a `get` and read
+`products.list` everywhere else.
+
+A store **write** action (`create`/`update`/`delete`) exposes `.pending`/`.error` too, as
+`store.action.pending`/`store.action.error` - same as a page action, and **action-global**: true while ANY
+row's write is in flight, not per-row (`when products.add.pending { Text "Saving…" }`).
 
 ## App-global persistence
 

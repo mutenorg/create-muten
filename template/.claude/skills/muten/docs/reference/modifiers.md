@@ -8,10 +8,12 @@ to the sibling form).
 | Modifier | Applies to | What it does |
 |---|---|---|
 | `class("…")` | any | styling - layout AND look (Tailwind utilities or your CSS). Reactive toggles too. |
-| `bind(state)` | `SearchField`, `Form` | two-way bind to a state cell |
+| `bind(state)` | `SearchField`, `Password`, `Select`, `Checkbox`, `Form` | two-way bind to a state cell |
 | `submit(action)` | `Form` | the action to run on a valid submit |
+| `disabled when <cond>` | `Button`, `RowAction`, `SearchField`, `Password`, `Select`, `Checkbox`, `Form` | reactively set the real `disabled` prop; bare `disabled` = always disabled |
 | `where(clauses)` | `DataTable` | filter clauses: `where(role == admin, name contains @q)` |
 | `columns(a, b)` | `DataTable` | which fields to show: `columns(name, email)` |
+| `options(a, b)` | `Select` | the fixed choice list (bare idents; value = label): `options(founder, engineer, other)` |
 | `alt("…")` | `Image` | **required** accessible/SEO alt text (`alt("")` for decorative) |
 | `inputs(k: v)` | `Custom` | values passed to a host-JS widget (`@` to pass state) |
 | `on(event: action)` | any | wire a DOM event to an action |
@@ -45,6 +47,21 @@ Button "Save" -> save(draft)                  # `-> action(arg)` is the form for
 
 `-> action` / `-> action(arg)` is the click shorthand on `Button`/`Link`/`RowAction`; `on(...)` is for other
 events or for `Custom` component events.
+
+## `disabled`
+
+Sets the **real, reactive** `disabled` property on a form control - it toggles as its condition changes. Bare
+`disabled` (no `when`) disables it always. Valid on `Button`, `RowAction`, `SearchField`, `Password`, `Select`,
+`Checkbox`, `Form`; on anything else (a `Stack`, a `Text`) it's a `disabled-target` error (it would do nothing):
+
+```muten
+Button "Next" -> next disabled when pw.length < 8 or not agree
+Button "Save" -> save(draft) disabled when save.pending
+Select bind(role) options(founder, engineer, other) "Pick a role" disabled
+```
+
+This replaces the old hand-roll of a fake `disabled` CSS class + `aria(disabled: …)` + an in-action guard: one
+modifier sets the property the browser and assistive tech already understand. See [Forms](../forms.md).
 
 ## `aria(...)`
 
@@ -80,7 +97,7 @@ Stack style(t: "translateX({x}px)", o: "{op}")      # multiple vars
 `Custom` takes `inputs` (values, `@` for state) and `on` (events → actions):
 
 ```muten
-Custom Chart inputs(data: @sales) on(pointSelect: select)
+Custom Map inputs(markers: @places) on(markerClick: select)
 ```
 
 See [Escapes](../escapes.md).

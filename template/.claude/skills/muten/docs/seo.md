@@ -1,9 +1,10 @@
 # SEO
 
-Muten is strong on SEO **by construction**: `muten build` pre-renders every route to real, crawlable HTML
-(no JS required to see the content), and on top of that the build emits the standard SEO machinery - sitemap,
-robots, canonical, Open Graph, structured data - **derived from your routes and `meta {}`**. You write the
-title and description; the rest is automatic.
+Muten is strong on SEO **by construction**: `muten build` pre-renders every **static** route to real, crawlable
+HTML (no JS required to see the content) - the one exception is a parametrized route (`/product/:id`), see
+[below](#pre-rendered-crawlable-html-ssg) - and on top of that the build emits the standard SEO machinery -
+sitemap, robots, canonical, Open Graph, structured data - **derived from your routes and `meta {}`**. You write
+the title and description; the rest is automatic.
 
 ## Per-page `<head>` - the `meta {}` block
 
@@ -31,15 +32,23 @@ Emitted:
 <meta property="og:description" content="A durable widget for everyday use."> <!-- auto-derived -->
 ```
 
+- **`meta {}` values are STATIC strings - they do NOT interpolate `{expr}`.** `title "Widget {id}"` is a
+  `meta-static` **oracle error**, not a silent no-op - there is no per-item/dynamic `<title>` in `meta` today.
+  Give a parametrized page one fixed title/description.
 - Any `meta { key "value" }` becomes a `<meta name|property=…>`; keys starting with `og:` use `property`.
 - `og:title` / `og:description` are **auto-derived** from `title` / `description` if you don't set them.
 - Meta is applied on client-side navigation (SPA) **and** baked into the static HTML at build (SSG).
 
 ## Pre-rendered, crawlable HTML (SSG)
 
-`muten build` writes `dist/<route>/index.html` for every route as **real HTML with the content already in it**
-- a crawler (or a user with JS off) sees the full page. Data-backed pages whose `sources` are `GET` are
-**fetched at build** and baked in, so lists render with real rows, not just placeholders.
+`muten build` writes `dist/<route>/index.html` for every **static** route as **real HTML with the content
+already in it** - a crawler (or a user with JS off) sees the full page. Data-backed pages whose `sources` are
+`GET` are **fetched at build** and baked in, so lists render with real rows, not just placeholders.
+
+**Parametrized routes (`/product/:id`) are NOT pre-rendered.** The SSG only knows the route pattern, not its
+possible param values, so `muten build` skips them - those pages run in the SPA runtime only, and
+`sitemap.xml` omits them. For a crawlable per-item page today, deploy that route with `muten bundle` (CSR), or
+give the item its own static route.
 
 ## SEO by nature - what the build emits for free
 

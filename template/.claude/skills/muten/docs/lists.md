@@ -20,6 +20,27 @@ For a `query` state, iterate `.data`:
 each users.data as u { Text "{u.name}" }
 ```
 
+### Row index - `each list as item, i`
+
+Add a second name after a comma to get the item's **0-based position** as a **reactive** number:
+
+```muten
+each steps as s, i { Text "{i + 1}. {s.label}" }          # 1. 2. 3. …
+```
+
+`i` reindexes whenever the list reorders or filters - so it stays correct, unlike a position baked into the
+data. Because it's a plain number, ordinary comparisons work: `class("top" when i < 3)` for a top-N highlight,
+`when i == 0 { … }` for a medal. Sort inside the `each` and `i` becomes a live **rank**:
+
+```muten
+each players.sortDesc by score as p, i {           # i = rank (0 = highest score)
+  Span "{i + 1}"  Span "{p.name}"  Span "{p.score}"
+}
+```
+
+Bump a score and the row moves *and* the ranks reindex - no JS, no stored rank field. The index var must be
+named differently from the item var. Omit it (`as item`) and no index machinery is emitted (zero overhead).
+
 ### Semantic lists - `List`
 
 `each` on its own renders items into whatever holds it (a `<div>` when that's a `Stack`). For a **real list**
@@ -143,18 +164,70 @@ action toggle(id: uuid) mutates todos {
 
 (`remove`/`push` reorder; `patch` keeps the item where it is.) See [Actions](actions.md) for the full op set.
 
+## Inline-editable list items - `bind(x.field)`
+
+Inside `each list as x { … }`, a bound input can bind a **field of the row** - so the list itself becomes
+editable, with no per-row draft state and no action:
+
+- `SearchField bind(x.title)`, `Password bind(x.secret)`, `Select bind(x.role) options(…)` - a **text** field
+- `Checkbox bind(x.done)` - a **bool** field
+
+It is **two-way**: as the user types, Muten patches the source list immutably - the matching element (keyed by
+`id`) is replaced with the edited copy. Because the `each` reconciles by `id`, only that one row touches the
+DOM, so **the caret and focus survive** the edit and typing never jumps. Reading `x.title` elsewhere
+(interpolation, a `when`) already worked; this adds the write-back.
+
+```muten
+screen todos
+
+entity Todo { title text  done bool }        # (implicit `id uuid`)
+
+state {
+  rows = [
+    { id: "t1", title: "Draft the brief", done: false }
+    { id: "t2", title: "Ship the deck",   done: true  }
+  ] : list<Todo>                             # seed explicit ids -> stable keys while editing
+}
+
+Page class("flex flex-col gap-2 p-6") {
+  List class("flex flex-col gap-2") {
+    each rows as x {
+      Stack class("flex flex-row gap-2 items-center") {
+        Checkbox bind(x.done) "Done"
+        SearchField bind(x.title) "Task title"
+      }
+    }
+  }
+}
+```
+
+- **Type-checked.** The field must exist on the row entity and its type must match the input - **text-like**
+  for `SearchField`/`Password`/`Select`, **bool** for `Checkbox`. A missing field or a mismatch is a
+  `bind-type` error (`bind(x.nope)` → error), the same rule a standalone bind follows.
+- **Settable source only.** The `each` must iterate a **settable list state** (e.g. `state { rows = [] :
+  list<Todo> }`). Over a `query` (or any derived / non-settable list) there is nowhere to write back, so the
+  control renders **read-only** (`readOnly`/`disabled`) - it still shows the value, it just can't be edited.
+- **Seed explicit `id`s.** Keying is by `id`; give each seeded row an `id` so it stays the same row (and keeps
+  focus) as you edit it.
+
+This is what makes **editable tables**, **inline edit**, and **data-driven forms** declarative - see
+[Data-driven / JSON forms](forms.md#data-driven--json-forms).
+
 ## The bounded toolkit, at a glance
 
 | Job | Form |
 |---|---|
 | render | `each list as item { … }` |
+| render + index | `each list as item, i { … }` (i = 0-based reactive position; sort → rank) |
 | filter render | `each list as item where cond { … }` |
 | count / total / avg / min / max | `list.count where …`, `list.sum by …`, `.avg`, `.min`, `.max` |
 | sort | `each list.sort by field as item`, `sortDesc by field` (field can be a `text` state = dynamic column) |
 | paginate / top-N | `list.take(n)` (n = literal or `number` state) |
+| element at index | `list.at(n)` → the item at position n; `list.at(n).field` reads a field (dual of `each … , i`) |
 | membership | `list contains x` · `(list.count where field == x) > 0` |
 | add ⇄ remove | `list.toggle(x)` (in an action) |
 | edit in place | `list.patch where … with { … }` (in an action) |
+| inline field edit | `each list as x { … bind(x.field) … }` (settable list; read-only over a `query`) |
 
 Anything beyond these (an arbitrary transform) is a [`use`](escapes.md) function - a deliberate, checked
 border, not a hole in the language.

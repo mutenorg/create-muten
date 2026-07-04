@@ -39,6 +39,12 @@ Page { Title "Product {id}" }
 
 Navigating `/product/1` → `/product/2` re-mounts the page with the new `id` (re-fetch the new item).
 
+> **Naming the param.** `id` is fine for a page that only displays it, as above. But if the page also
+> **filters a list** by that value (`each store.items as p where p.slug == id`), name the param something else
+> (`pid`/`productId`) - every entity has an implicit `id` field, and inside a `where`/`by` predicate the param
+> `id` would shadow the row's own `id`, making `where id == id` always false. See
+> [Detail page by route param](patterns.md#detail-page-by-route-param).
+
 ## Guards
 
 A guard reads a **store boolean**; if it's false on navigation, the user is redirected. When the boolean flips
@@ -73,6 +79,13 @@ routes { "/" -> home  "/about" -> about }
 ```
 
 The shell also emits a keyboard **skip-link** to the content automatically (see [Accessibility](accessibility.md)).
+
+## Active link - automatic
+
+The router marks the current nav link for you: any internal `<a>` whose `href` equals the current path gets
+`aria-current="page"` and the class `is-active` - on shell nav links and plain page links alike. Style it in
+CSS (`.is-active { … }` or `a[aria-current="page"] { … }`); there is no `class(active when …)` to write and no
+route/location ref to read.
 
 ## `<head>` metadata
 

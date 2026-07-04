@@ -82,11 +82,13 @@ A component whose registry entry has a `component` field is backed by a vanilla-
 so it cannot be imported - **only `muten add`** (which copies both the `.muten` part and the host `.js`):
 
 ```sh
-muten add slider calendar chart      # copies the part + src/components/Slider.js, Calendar.js, Chart.js
+muten add carousel map-embed         # copies the part + src/components/Carousel.js, MapEmbed.js
 ```
 
-These are the genuinely interactive widgets (sliders, calendars, charts, carousels): the deliberate 20% that
-needs real JS. You own the host file and can edit it.
+Reserve these for what muten genuinely can't express (carousels, map embeds, rich editors). **Charts, sliders
+and date pickers are NATIVE** - use the `Chart`, `Range` and `Date` primitives (oracle-checked, zero JS), not a
+plugin. A plugin may still ship a styled Custom version of one for design parity, but you never *need* a plugin
+(or JS) for those capabilities. You own any host file you eject.
 
 ## The container / presentational pattern
 
@@ -100,12 +102,30 @@ Switch(on: dark, onToggle: toggle)
 ```
 
 Overlays own an `open` bool (`Dialog(open: open, onClose: close)`); single-select groups pass the current value
-plus each item's value. Each component's `.muten` file documents its usage in a header comment.
+plus each item's value. **The exact props of a plugin part are in the header comment of its `.muten` file**
+(`node_modules/@muten/<plugin>/registry/<name>.muten`) - read it before calling; a catalog blurb is not the API.
+
+## Two gotchas that bite every time
+
+1. **A native primitive ALWAYS wins over a same-named plugin part.** The core ships `Select`, `Checkbox`,
+   `Number`, `Range`, `Date`, `Chart` (plus `Button`/`Link`/`Form`/`Image`/`Text`/…) as primitives, so a plugin
+   part with one of those names is **unreachable** - the primitive is used instead. If you write a plugin part's
+   call and the oracle says `missing-prop: Select is missing the required "bind"`, that's the native primitive
+   shadowing the part → use the **primitive's** API (`Select bind(x) options(a, b)`, `Checkbox bind(ok)`,
+   `Chart @data kind(bar) …`). Well-behaved plugins don't ship parts named after a primitive (e.g. shadcn renamed
+   its `Sidebar`→`AppSidebar`, and uses `Btn`/`Input` instead of `Button`/`SearchField`).
+
+2. **A part call takes NO trailing modifiers.** `Card(...) class("x")`, `Btn(...) disabled when v`, `Part(...)
+   on(...)`, `Part(...) aria(...)` are all **syntax errors** - a part call ends at its `)` / `{ }`. When you need
+   `class` / `disabled when` / `on` / `aria` on a control, use the **native primitive**
+   (`Button "Save" -> save disabled when not valid class("btn btn-default")`), not the plugin's button part.
 
 ## @muten/shadcn
 
-The flagship plugin: the full [shadcn/ui](https://ui.shadcn.com) set, ported to muten as semantic classes
-(`.card`, `.btn`, ...) + parts + a handful of Custom widgets (Slider, Calendar with all its variants, Chart, ...).
+The flagship plugin: the [shadcn/ui](https://ui.shadcn.com) set, ported to muten as semantic classes
+(`.card`, `.btn`, ...) + parts (Card, Dialog, Tabs, Accordion, Select, Badge, ...). Reach for it for **consistent
+design**, not for capability - charts, sliders and date pickers are already native primitives. (It also carries
+older Custom `Slider`/`Calendar`/`Chart` parts for parity, but prefer the native `Range`/`Date`/`Chart`.)
 Authentic shadcn styling, your `.muten` stays readable. See its README for the component list.
 
 ## Building your own plugin

@@ -45,6 +45,34 @@ action setStatus(cid: text, s: text) mutates items { items.patch where id == cid
 - A page redefines the `entity` for its own `Form` draft (entities don't cross the store border - small, expected dup).
 - `remove`/`patch where id == cid`: name the param DIFFERENTLY from the field (`cid`, not `id`).
 
+## Store-centric CRUD over a REST backend
+A `.store` can hold `query` + `sources` too - they're legal in a store, not only on a page. Read the query
+through a `get` (`items.data`, **not** `@contacts.items` directly - a raw store query member is the
+`{loading,data,error}` wrapper; expose the array with a `get`), and aggregate over that same `get`:
+```
+# src/contacts.store
+entity Contact { name text required  email email required  status lead | active }
+
+state   { items = query items : list<Contact> }
+sources { items: { url: "/contacts", at: "data" } }   # api { base } in app.muten sets the host once
+
+get list  = items.data                                  # the array - read THIS, not @contacts.items
+get leads = items.data.count where status == "lead"     # aggregate over the same get
+
+action add(c: Contact) mutates items { items.create(c) }   # POST   /contacts
+action edit(c: Contact) mutates items { items.update(c) }   # PUT    /contacts/{id}
+action drop(c: Contact) mutates items { items.delete(c) }   # DELETE /contacts/{id}
+```
+```
+# any page
+DataTable @contacts.list columns(name, email, status)     # Chart @ works the same over a get - pre-group first
+                                                            # for a categorical chart (see the recipe above)
+when contacts.add.pending { Text "Saving…" }               # action-global: true while ANY row's write is in flight
+when contacts.add.error   { Text "Could not save" class("text-red-600") }
+```
+Same store, three jobs: fetch (`query`+`sources`), derive (`get`), write (`action … mutates`). A page only
+touches `contacts.list`/`contacts.leads` and calls `contacts.add`/`edit`/`drop` - never the raw query member.
+
 ## Dashboard with KPIs (aggregates - no JS)
 ```
 screen dashboard
@@ -64,6 +92,28 @@ Page class("pad-lg gap-lg") {
 ```
 Aggregates: `list.count where cond` · `list.sum by field` · `list.avg by field` · `list.max by field` · `list.length`.
 They work over state, a query, OR a `get` (e.g. `get won = items where stage == "won"` then `get wonValue = won.sum by amount`).
+
+## Categorical chart from transactional data (revenue by category)
+A bar/pie chart wants **one row per category**, but your data is **one row per order**. `Chart` draws one mark
+per row (it does NOT auto-group), so pre-group the rows into a `get`, then point `Chart @` at that `get` (a
+`Chart @` binds a page **state / query / get** OR a **store list** - anything that resolves to a list). Grouping
+isn't a built-in, so the group step is a one-line `use` fn (the checked JS escape):
+```
+# ~/lib/rollup.ts  →  export function byCategory(orders) {
+#   const m = new Map(); for (const o of orders) m.set(o.category, (m.get(o.category) ?? 0) + o.amount);
+#   return [...m].map(([category, revenue], i) => ({ id: String(i), category, revenue })); }
+screen dashboard
+use byCategory from "~/lib/rollup.ts"
+entity CatRevenue { category text  revenue number }             # types the grouped rows
+state { orders = query orders : list<Order> }
+get revByCat = byCategory(orders.data) : list<CatRevenue>        # derived list, one row per category
+Page {
+  Chart @revByCat kind(bar) x(category) y(revenue)              # @ a get - no page-state mirror, no effect
+}
+```
+Key point: **`Chart @` takes a `get` (or a store list) directly** - you do NOT need to mirror it into a page
+`state` via an `effect`. If your orders live in a store, `get revByCat = byCategory(orders.items)` in the store (or
+the page) and `Chart @revByCat` works the same. Only reach for `use` for the *grouping*; the chart itself is native.
 
 ## List + search + add + delete (CRUD)
 ```
@@ -91,6 +141,30 @@ Page class("pad-lg gap-lg") {
   }
 }
 ```
+
+## Detail page by route param
+`"/product/:pid" -> product` + `param pid` in the page. Render the one matching row with `each … where` (0 or
+1 iterations), or read a scalar off it with a `get` + `.at(0)`:
+```
+# app.muten
+routes { "/product/:pid" -> product }
+```
+```
+# src/pages/product/product.muten
+screen product
+param pid
+
+get match = products.items where slug == pid        # filtered list - 0 or 1 row
+
+Page {
+  each products.items as p where p.slug == pid { Title "{p.name}" }   # render the row
+  Text "{match.at(0).name}"                                            # or read one scalar off the match
+}
+```
+**Never name the param `id`.** Every entity has an implicit `id` field, so inside a `where`/`by` predicate the
+param `id` shadows the row's own `id` field - `where id == id` compares the row to itself and is always
+`false`. Name it `:pid` / `:productId` instead. (The oracle's `item-shadow` check catches the clash, but the
+canonical pattern is to never write it in the first place.)
 
 ## Kanban / pipeline (one column per enum value)
 One `each … where` per stage (each column filters by its stage value). Advance a card with `patch where … with`
@@ -121,10 +195,38 @@ Stack class("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md") {
 # }
 ```
 
+## Combobox / searchable select (type-to-filter + keyboard)
+No Custom widget: a `SearchField` + a computed filtered list + `each … , i` for the highlight + `at(hi)` to commit.
+Click OR keyboard (↑ ↓ move, Enter picks, Esc clears). Scales past what a native `<select>` handles well.
+```
+entity City { name text }
+state { q = "" : text  hi = 0 : number  chosen = "" : text  cities = [ … ] : list<City> }
+get matches = cities where name contains q
+get hits    = matches.count where true
+
+action typed mutates hi { hi.set(0) }                                  # new query → reset highlight
+action pick(c: City) mutates chosen, q, hi { chosen.set(c.name)  q.set(c.name)  hi.set(0) }
+action nav(k: text) mutates hi, chosen, q {                            # on(keydown:) passes the key
+  if k == "ArrowDown" { hi.set(min(hi + 1, hits - 1)) }
+  if k == "ArrowUp"   { hi.set(max(hi - 1, 0)) }
+  if k == "Enter"     { chosen.set(matches.at(hi).name)  q.set(matches.at(hi).name) }
+  if k == "Escape"    { q.set("") }
+}
+
+SearchField bind(q) "Type a city…" on(input: typed) on(keydown: nav)
+when q.length > 0 {
+  each matches as c, i { Button "{c.name}" -> pick(c) class("hl" when i == hi) }
+}
+```
+Style `.hl` however you like. The whole thing is declarative + oracle-checked - the highlight is `i == hi`, the
+commit reads `matches.at(hi)`. (A multi-select tag input is the same shape over a `list<text>` with `toggle`.)
+
 ## Dates / calendar
-Date **math + formatting are built in** - `daysUntil` / `dayKey` / `addDays` / `now` / `ago` / `date` / `time`
-(no `use`), and `Form` has a `date` field. What's NOT built in is **calendar-grid layout** (the 42-cell month):
-for that, a `use` fn anchors an ISO string and returns the cells `each` iterates, with field access on the items.
+**Picking one date** is native, no Custom: `Date bind(due)` renders `<input type=date>` (the browser's calendar
+popup), and `Form` has a `date` field. Date **math + formatting are built in** too - `daysUntil` / `dayKey` /
+`addDays` / `now` / `ago` / `date` / `time` (no `use`). What's NOT built in is **calendar-grid layout** (the
+42-cell month, for a range/availability view): for that, a `use` fn anchors an ISO string and returns the cells
+`each` iterates, with field access on the items.
 ```
 # src/lib/cal.ts (named exports)
 #   export function addMonths(anchor, n) {...}

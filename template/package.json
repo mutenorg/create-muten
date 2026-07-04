@@ -8,9 +8,6 @@
     "lint": "muten lint"
   },
   "dependencies": {
-    "@muten/core": "^0.0.35"
-  },
-  "devDependencies": {
-    "vite": "^8.0.16"
+    "@muten/core": "^0.0.38"
   }
 }

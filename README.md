@@ -69,8 +69,8 @@ In an interactive terminal it prompts for a few things (defaults in parentheses)
 | **Install deps and start dev now?** | `Y` / `n` | `Y` |
 
 **Styling is one explicit choice**: each is opt-in, nothing is bundled by default: `CSS` (plain) or `SCSS`
-ship no framework; `Tailwind CSS` adds `@tailwindcss/vite` + `@import "tailwindcss"`; `DaisyUI` adds its
-component classes on top (and brings Tailwind). You always style via `class("…")`.
+ship no framework; `Tailwind CSS` adds `tailwindcss` + `@import "tailwindcss"` (the native runner compiles it
+in-process — no Vite); `DaisyUI` adds its component classes on top (and brings Tailwind). You always style via `class("…")`.
 
 **Targets are independent opt-ins**: web, desktop, both, or neither, from the same `.muten` source:
 - **Vercel** writes a `vercel.json` so muten's real-path routes don't 404 on a hard refresh (SPA fallback to `index.html`).

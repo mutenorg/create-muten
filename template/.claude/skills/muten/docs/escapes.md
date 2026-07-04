@@ -7,7 +7,10 @@ so reaching out never costs you the oracle.
 Reach for the **lowest rung that works**:
 
 1. **`class("…")`** - styling and CSS libraries (not an escape, just the styling path). See [Styling](styling.md).
-2. **`Custom`** - a vanilla-JS **widget** Muten can't express (a chart, a map, a date-picker, a rich editor).
+2. **`Custom`** - a vanilla-JS **widget** Muten genuinely can't express: a **map** (pan/zoom/tiles), a **rich-text
+   editor** (contenteditable), a **canvas/WebGL** scene, a per-frame animation. **NOT** charts, sliders, or date
+   pickers - those are native primitives now (`Chart`, `Range`, `Date`, plus the `Svg` vector layer and
+   `draggable`/`droptarget`). Reach for `Custom` only after checking there's no native primitive for it.
 3. **`use`** - a vanilla-JS **logic function** (formatting, date math, a 3rd-party SDK) called in an expression.
 
 There is **no React/Vue/Svelte component escape** - Muten owns the whole UI; foreign code enters only as a
@@ -21,15 +24,15 @@ Write vanilla JS in `src/components/<Name>.js` and mount it with `Custom`. It re
 pass) and wires DOM events back to your actions via `on`:
 
 ```muten
-Custom Chart inputs(data: @sales) on(pointSelect: select)
+Custom Map inputs(markers: @places) on(markerClick: select)
 ```
 
 ```js
-// src/components/Chart.js
+// src/components/Map.js   (a genuine Custom: pan/zoom/tiles is NOT expressible in the DSL)
 function mount(el, inputs, on) {        // THREE positional args
-  const chart = makeChart(el, inputs.data);   // read a value: inputs.data
-  chart.onPick = (p) => on.pointSelect(p);     // call a handler: on.pointSelect(payload)
-  return (next) => chart.setData(next.data);   // OPTIONAL: return an updater → muten re-calls it when a bound @state changes
+  const map = makeMap(el, inputs.markers);   // read a value: inputs.markers
+  map.onMarker = (m) => on.markerClick(m);    // call a handler: on.markerClick(payload)
+  return (next) => map.setMarkers(next.markers);  // OPTIONAL: return an updater → muten re-calls it when a bound @state changes
 }
 ```
 
