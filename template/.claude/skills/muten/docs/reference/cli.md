@@ -31,6 +31,10 @@ muten new app                            # → ensure src/app.muten (the routes 
 Fill each scaffolded skeleton with the real content (replace the `# TODO`; give the store its real entity fields + seed
 rows), then `muten check`. Use `muten new` to add a page/store mid-build too — it wires the route + a compiling stub.
 
+**Adapts to your app:** if `muten.config` enables `plugins { shadcn {} }`, `muten new page` seeds a **shadcn-idiom**
+skeleton (semantic tokens `bg-background`/`text-foreground` + a hint to use the parts Card/Badge/Avatar/Tabs) so the app
+starts, and stays, in that style. A plain app gets a minimal stub. Either way the skeleton compiles.
+
 ## `muten dev`
 
 Starts the **dev server**: muten's own runner (embedded esbuild) compiles your `.muten` on the fly - per-route

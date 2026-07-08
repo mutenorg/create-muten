@@ -11,6 +11,20 @@ Muten ships ZERO framework runtime; foreign code comes in only through explicit 
 functions - §14, `Custom` for a vanilla-JS widget - §13). A page with no reactivity compiles to plain
 zero-runtime HTML; a reactive one ships ~1KB of signals.
 
+## Use this as your brain for Muten — offload, don't derive
+No model is trained on Muten, but you do NOT need to hold it all in your head or reason it out. Work by
+**look-up and copy, not derivation** — that's what keeps a build cheap, fast and correct:
+- **Building a page/screen?** Never start from a blank page. **COPY the closest showcase** reference — a complete,
+  idiomatic page. The builder injects the nearest ones as `MUTEN-REFERENCE.md`; they're categorized by archetype
+  (dashboard · shop/commerce · social/feed · chat/inbox · forum · CRM/admin · landing · auth & forms · settings ·
+  pricing). Adapt it to this app's data, then elevate it. **Calcar → acoplar → mejorar.**
+- **Unsure of a syntax or rule?** Look it up HERE — the sections below are the whole language. Open a specific
+  `docs/<topic>.md` (data · stores · state · actions · lists · forms · styling · routing · parts · escapes) ONLY
+  for the one thing you need. Do NOT read the whole doc set, and never read the compiler/engine source.
+- **Making it look good?** Invoke the **`muten-design`** skill for the taste (layout · color · density · motion).
+- **Golden rule:** if you're about to reason hard about "how would Muten do X?", stop — the answer is almost
+  always already written in a section below or shown in a showcase. Find it or copy it; don't derive it.
+
 > **Companion docs (same folder):** [`docs/`](docs/README.md) - the **complete reference** (every
 > primitive/modifier/keyword + full guides: forms, accessibility, SEO, data, stores, …). This SKILL.md is the
 > compressed always-on reference; open a `docs/<topic>.md` on demand when you need the full detail and the *why*.
