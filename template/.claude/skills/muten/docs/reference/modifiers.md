@@ -9,6 +9,7 @@ to the sibling form).
 |---|---|---|
 | `class("…")` | any | styling - layout AND look (Tailwind utilities or your CSS). Reactive toggles too. |
 | `bind(state)` | `SearchField`, `Password`, `Select`, `Checkbox`, `Form` | two-way bind to a state cell |
+| `checked(expr)` | `Checkbox` | display a bool one-way (a store/query row you don't own); pair with `-> action` to toggle. Alternative to `bind` — exactly one of the two |
 | `submit(action)` | `Form` | the action to run on a valid submit |
 | `disabled when <cond>` | `Button`, `RowAction`, `SearchField`, `Password`, `Select`, `Checkbox`, `Form` | reactively set the real `disabled` prop; bare `disabled` = always disabled |
 | `where(clauses)` | `DataTable` | filter clauses: `where(role == admin, name contains @q)` |

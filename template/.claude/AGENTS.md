@@ -5,6 +5,16 @@ This project uses **Muten**, an AI-first frontend framework. The UI is written i
 trained on Muten yet, so **follow this guide instead of guessing**. Foreign code enters ONLY through explicit
 escapes - `use` for JS functions, `Custom` for a vanilla-JS widget - never as the page UI itself; never add a JS bootstrap.
 
+> ## ⛔ Before you write ANY JavaScript, STOP — Muten probably does it natively
+> The most common failure is escaping to vanilla JS for UI Muten already owns. **A `Custom` is ONE leaf widget the
+> platform genuinely can't express (a map, a canvas, an iframe) — never a toolbar, list, modal, or sub-app.** If
+> you catch yourself writing any of these in a `.js`, delete it and use the native form:
+> - **Live data from a backend** → `state { x = query feed live : list<T> }` + a `ws://` source. **Never** `new WebSocket`/`new EventSource` yourself — Muten owns the socket (reconnect + keyed reconciliation).
+> - **An icon** → `Icon "lucide:name"` (Iconify, inlined, tree-shaken). **Never** inline `<svg>` or an icon package.
+> - **A dropdown / modal / tabs / toast / accordion** → a page `state` + `when cond { … }` + `class(open when …)`. **Never** `createElement`/`addEventListener`.
+> - **A button / list / card / badge** → native primitives (`Button -> action`, `each`, …) or the **`@muten/shadcn`** plugin (your component set). **Never** hand-roll them in JS.
+> Rule of thumb: if a `Custom`'s `.js` contains a button, a socket, a list render, an icon, or a modal, it is **too big** — that's declarative Muten. Escaping when you didn't need to ships more JS, loses the oracle, and makes the app the *opposite* of what Muten is for.
+
 > The **`muten` skill** holds everything - read it before writing `.muten`:
 > - [`skills/muten/SKILL.md`](skills/muten/SKILL.md) - the language (every primitive, prop, token, escape).
 > - [`skills/muten/design.md`](skills/muten/design.md) - making pages look great: styling routes, skinning the
@@ -47,6 +57,7 @@ Page class("flex flex-col gap-4 p-6") {
 - **Content:** `Text`, `Title "x" h2`, `Span`, `Image "{src}" alt("…")` (alt required), `Link "x" -> "/route"`, `Button "x" -> action(arg)`.
 - **Data:** `DataTable @list columns(a, b)`, `Form bind(draft) submit(create)`, `SearchField bind(q)`.
 - **Inputs (standalone, native):** `Select bind(x) options(a, b)`, `Checkbox bind(ok)`, `Password bind(pw)`, `Number bind(n) min(0) max(9)`, `Range bind(v) min(0) max(100)` (slider), `Date bind(d)` (native calendar). Bind-type is oracle-checked.
+- **Toggle a bool in a store/query list ROW** (you can't two-way-bind a row): `Checkbox checked(t.done) -> todos.toggle(t.id)` — `checked(<bool>)` shows it, `-> action` fires the store `patch`. (Only a page-`state` list row is directly `bind`-able.)
 - **Native "hard" widgets (the 20%, built-in - NO Custom, NO plugin):** `Chart @sales kind(bar) x(label) y(value)` (also line/area/point/scatter/pie/donut, auto scales/axes/legend); the raw vector layer `Svg`/`Rect`/`Circle`/`Line`/`Path`/`Arc` (geometry = reactive number exprs, `map`/`sin`/`cos` built-ins); **drag & drop** `draggable(item.id)` + `droptarget("col") on(drop: move)` (pointer-based, nested-safe).
 - **Control:** `when <expr> { … }`, `each <list> as item { … }` (add a comma for the 0-based reactive index: `each xs as x, i { … }` → rank when sorted; read one back with `list.at(n)` / `list.at(n).field`).
 - **Interactivity:** reactive class `class(active when isOpen)` (quote hyphenated names: `class("is-open" when x)`); events on any element `on(keydown: act, mouseenter: act)`; **`on(enter: action)`** on an input = Enter-to-submit (no Custom); a `"/404"` route catches unmatched paths.

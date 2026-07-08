@@ -51,6 +51,37 @@ Rules that matter:
 `Custom` is the only way to use non-Muten **UI** code. It's for genuine widgets - not for things Muten already
 does (see below).
 
+### A `Custom` is a LEAF - ONE widget, not a sub-app (read this before you write JS)
+
+The #1 way an agent accidentally **rewrites Muten in vanilla JS** is the *gravity well*: you open one `Custom`
+for a genuine escape (an iframe, a map), and then build the buttons, the list, the layout, the dropdown, the
+toast, the socket — all in that same `.js` file, because you're "already in JS". **Stop.** A `Custom` wraps
+**one** non-Muten thing and nothing more. If, inside a `Custom`, you find yourself doing ANY of these, delete it
+and use the native form — Muten does all of them, and doing them in JS ships more code, loses the oracle, and
+makes the app unreadable to the next agent:
+
+| Inside a Custom you wrote… | That's Muten's job — use | 
+|---|---|
+| `document.createElement('button')` + `addEventListener('click', …)` | a native **`Button "…" -> action`** |
+| `new EventSource(…)` / `new WebSocket(…)` (live data from your backend) | **`state { x = query feed live : list<T> }`** — Muten opens & reconciles the socket (§ real-time below) |
+| inline `<svg>…</svg>` / an icon lib | **`Icon "lucide:name"`** (Iconify, inlined at build, tree-shaken) |
+| a dropdown / modal / tabs / accordion / toast (show-hide floating UI) | a page `state` + **`when cond { … }`** + **`class(open when …)`** (§ patterns.md) |
+| building card/badge/dialog/button styling by hand | the **`@muten/shadcn` plugin** parts — it *is* your component set (`muten add shadcn`) |
+| `.map`/`.filter`/`.forEach` to render a list | **`each list as x { … }`** |
+
+If your `Custom` contains buttons, list rendering, a socket, icons, or a modal, it is **too big** — those are
+declarative Muten. Keep the Custom down to the one thing the platform can't express (the canvas, the map tiles,
+the iframe, the contenteditable) and move everything around it back into `.muten`.
+
+**Real-time is native — never hand-roll a socket.** A backend that pushes updates → `query x live` (WebSocket,
+auto-reconnect, keyed reconciliation, batched). You never write `new WebSocket`/`new EventSource` yourself:
+
+```muten
+state   { feed = query feed live : list<Event> }
+sources { feed: { url: "ws://localhost:5480/ws/feed" } }
+# each feed as e { Text "{e.text}" }   ← only changed rows touch the DOM
+```
+
 ---
 
 ## `use` - a host-JS logic function
@@ -93,6 +124,11 @@ reach for `use` or `Custom`, check it isn't a built-in:
 
 | You're tempted to write (in JS) | Use instead | |
 |---|---|---|
+| `new WebSocket` / `new EventSource` (live backend data) | **`query x live`** — Muten owns the socket | [Data § live](data.md) |
+| inline `<svg>` / an icon package | **`Icon "lucide:name"`** (native, tree-shaken) | [Primitives § Icon](reference/primitives.md) |
+| a dropdown / modal / tabs / toast (in JS) | page **`state` + `when` + `class(open when …)`** | [Patterns](../patterns.md) |
+| hand-rolled buttons/cards/badges in a `Custom` | native primitives, or the **`@muten/shadcn`** plugin | [Plugins](plugins.md) |
+| `document.createElement` to build UI | a native primitive (`Button`, `Stack`, `each`, …) | this file, top |
 | `localStorage.getItem/setItem` | **`persist`** on the state | [State § persist](state.md#persist--localstorage-declaratively) |
 | `items.some(x => x.id === id)` | **`contains`** on a `list<number>` of ids, or `count where … > 0` | [Lists § membership](lists.md#membership--is-it-in-the-list) |
 | `list.filter(...)` / `.find(...)` | **`where`** (`each … where`, `count where`) | [Lists](lists.md) |

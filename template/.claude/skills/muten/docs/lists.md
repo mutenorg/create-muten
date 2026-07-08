@@ -204,9 +204,26 @@ Page class("flex flex-col gap-2 p-6") {
 - **Type-checked.** The field must exist on the row entity and its type must match the input - **text-like**
   for `SearchField`/`Password`/`Select`, **bool** for `Checkbox`. A missing field or a mismatch is a
   `bind-type` error (`bind(x.nope)` → error), the same rule a standalone bind follows.
-- **Settable source only.** The `each` must iterate a **settable list state** (e.g. `state { rows = [] :
-  list<Todo> }`). Over a `query` (or any derived / non-settable list) there is nowhere to write back, so the
-  control renders **read-only** (`readOnly`/`disabled`) - it still shows the value, it just can't be edited.
+- **Settable page-`state` source only.** The `each` must iterate a **settable page list state** (e.g. `state {
+  rows = [] : list<Todo> }`). A **`.store` or `query` row is NOT directly `bind`-able** — its rows change only
+  through actions, so `Checkbox bind(t.done)` over `todos.items` is a **`bind-type` error**. Change a store/query
+  row with an action instead:
+  - **bool toggle** (the common one) — one line, no wrapper: `Checkbox checked(t.done) -> todos.toggle(t.id)`.
+    `checked(<bool>)` displays the row's value one-way; `-> action` fires the store `patch`. A plain `checked(expr)`
+    with no `->` is a **read-only** display checkbox.
+  - **any other field** — a Button/Select `-> action(t.id)` that runs `patch where id == t.id with { … }`.
+
+```muten
+# store row toggle — the todo checkbox
+each todos.items as t {
+  Stack class("flex flex-row gap-2 items-center") {
+    Checkbox checked(t.done) -> todos.toggle(t.id)       # display + toggle, no bind
+    Span "{t.title}" class("line-through" when t.done)
+  }
+}
+# in todos.store:  action toggle(tid: uuid) mutates items { items.patch where id == tid with { done: not done } }
+```
+
 - **Seed explicit `id`s.** Keying is by `id`; give each seeded row an `id` so it stays the same row (and keeps
   focus) as you edit it.
 

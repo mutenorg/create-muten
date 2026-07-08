@@ -62,7 +62,7 @@ Page class("flex flex-col gap-6") {
 | `SearchField` | `<input type=search>` | bound text input: `SearchField bind(q) "Search…"`; has an accessible name |
 | `Password` | `<input type=password>` | masked text input, two-way bound: `Password bind(pw) "Password"` (binds a **text** state) |
 | `Select` | `<select>` | bound choice: `Select bind(role) options(founder, engineer, other) "Pick a role"` - `options` (the value list) is required; the string is the empty-value prompt (binds a **text** state) |
-| `Checkbox` | `<label>`+`<input type=checkbox>` | bound bool in a clickable label: `Checkbox bind(agree) "I accept the terms"` (binds a **bool** state) |
+| `Checkbox` | `<label>`+`<input type=checkbox>` | a bool. `Checkbox bind(agree) "I accept"` two-way-binds a page **bool** state. For a store/query list ROW (not `bind`-able), display + toggle: `Checkbox checked(t.done) -> todos.toggle(t.id)` — `checked(<bool>)` shows it, `-> action` toggles; `checked` alone = read-only |
 | `Number` | `<input type=number>` | numeric input, two-way bound: `Number bind(qty) min(1) max(99) step(1)` (binds a **number** state; value coerced with `Number()`) |
 | `Range` | `<input type=range>` | slider, two-way bound: `Range bind(volume) min(0) max(100) step(5)` (binds a **number** state; defaults 0..100 step 1) |
 | `Date` | `<input type=date>` | native date picker: `Date bind(due)` (binds a **date**/text state, ISO `YYYY-MM-DD`) |

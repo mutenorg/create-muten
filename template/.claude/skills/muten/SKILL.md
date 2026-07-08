@@ -77,8 +77,11 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
 
 ## 2. What you CANNOT do
 - **No React / Vue / Svelte - at all.** Muten ships ZERO framework runtime. Pages are `.muten` → vanilla DOM;
-  you don't compose the app from MUI/Chakra/shadcn. For a widget Muten can't express, drop to a vanilla-JS
-  `Custom` (§13); for JS logic, `use` a function (§14). There is no JSX/hooks/`className` anywhere.
+  you don't compose the app from a React library (MUI/Chakra/the npm `shadcn/ui`). You CAN compose from
+  **`@muten/shadcn`** — the shadcn component set ported to native muten PARTS (`Card`, `Combobox`, `Dialog`,
+  `Avatar`, `Badge`, `Tabs`, …); enable it with `plugins { shadcn {} }` in `muten.config` and call a part like any
+  primitive (`Card { CardHeader { CardTitle(label: "…") } CardContent { … } }`). For a widget Muten can't express,
+  drop to a vanilla-JS `Custom` (§13); for JS logic, `use` a function (§14). There is no JSX/hooks/`className` anywhere.
 - **No arbitrary inline CSS** - static styling (layout, colors, borders, shadows) ALL goes through `class("…")`
   + your CSS (Tailwind utilities, or your own classes backed by `theme.muten` vars). The one exception is a value
   that **changes at runtime** (progress width, dynamic transform): `style(w: "{pct}%")` sets a CSS variable
@@ -101,10 +104,15 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
   (text state + `options(a, b, c)`), `Checkbox` (bool state), `Number`/`Range` (a **number** state; `Range` is a
   slider — `min(0) max(100) step(5)`, numbers or a state), `Date` (a date/text state — the native `<input type=date>`
   calendar). Gate an action reactively with `disabled when <cond>` — e.g. `Button "Next" -> next disabled when pw.length < 8`.
-- **Inline-editable list items** — inside `each xs as x` (where `xs` is a mutable list state), an input can bind
+- **Inline-editable list items** — inside `each xs as x` where `xs` is a **page-`state`** list, an input can bind
   a ROW FIELD: `SearchField bind(x.title)`, `Checkbox bind(x.done)`. Two-way: editing patches the source list
   (keyed by id, caret-safe). This is how you build editable tables, inline-edit, AND **data-driven / JSON forms**
-  (fields from a `list<FieldSpec>`, each rendering `bind(f.value)`). A non-settable source (a `query`) → read-only.
+  (fields from a `list<FieldSpec>`, each rendering `bind(f.value)`).
+- **Editing a `.store` / `query` list ROW** — those rows are NOT directly `bind`-able (mutations go through actions).
+  Change a field with a store ACTION (`patch where id == x`). For the common **bool toggle**, a Checkbox does it in
+  one line: `Checkbox checked(t.done) -> todos.toggle(t.id)` — `checked(<bool>)` displays the row's value (one-way),
+  `-> action` fires the toggle. Read-only display = `checked(<bool>)` with no `->`. For other fields, fire a
+  Button/Select `-> action(row.id)`. (`bind(t.done)` on a store row is a `bind-type` error — it tells you this.)
 - **`match` for enums** - `match status { active -> Text "Active"  lead -> Span "Lead" class("badge") }` renders the matching arm
   (sugar for N `when status == "x"`). **`DataTable`** shows raw cell
   text (no per-column formatting - use `each` + `Stack` for formatted/badge cells). **`sort by`** takes a
@@ -141,6 +149,9 @@ state {                          # page-LOCAL reactive state
   users = query listUsers : list<User>   # query → async; exposes users.loading/.error/.data
   # state types: scalar (text/number/bool/email/uuid), list<Entity>, OR list<scalar> (list<text>/list<uuid>/…).
   # an enum lives in an entity field, NOT as a state type; hold its value as text. A list of plain strings is list<text>.
+  cards = [ { title: "A", desc: "x" } ] : list   # STATIC list initialized from a literal → just `: list`; the element
+  #   shape is INFERRED from the literal (no `entity` needed) → `each cards as c { Text "{c.title}" }` still checks c.title.
+  #   Use this for presentational lists (feature grids, nav, tabs). `each` still needs a NAMED list — never `each [ … ] as x`.
   # PERSIST to localStorage - append `persist`: `dark = false : bool persist`, `favs = [] : list<number> persist`.
   #   Auto-hydrates on load (falls back to the initial) + saves on every change → survives reload. It is THE
   #   declarative localStorage. Works HERE (page-local) AND in a `.store` for app-GLOBAL persisted state
@@ -268,10 +279,11 @@ A bare string is the node's main prop. `{ }` = children. Style everything (layou
 | `Video` | `<video>`; bare-keyword flags `controls autoplay loop muted playsinline` | `Video "clip.mp4" controls` |
 | `Link` | client-side nav | `Link "Catalog" -> "/catalog"` |
 | `Button` | runs an action | `Button "Save" -> save(draft)` |
-| `SearchField` | text input bound to state | `SearchField bind(q) "Search…"` |
+| `SearchField` | single-line text input bound to state | `SearchField bind(q) "Search…"` |
+| `Textarea` | multi-line text input bound to a text state (standalone `<textarea>`) | `Textarea bind(msg) "Write a message…"` |
 | `Password` | masked text input bound to a text state | `Password bind(pw) "Password"` |
 | `Select` | dropdown bound to a text state; fixed `options()` | `Select bind(role) options(admin, member) "Role"` |
-| `Checkbox` | checkbox bound to a bool state, clickable label | `Checkbox bind(agree) "I accept"` |
+| `Checkbox` | bool: `bind` a page state (two-way), or `checked(expr)` to display + `-> action` to toggle (store/query rows) | `Checkbox bind(agree) "I accept"` · `Checkbox checked(t.done) -> todos.toggle(t.id)` |
 | `Number` | numeric input bound to a number state | `Number bind(qty) min(1) max(99)` |
 | `Range` | slider bound to a number state | `Range bind(volume) min(0) max(100) step(5)` |
 | `Date` | native date picker bound to a date/text state | `Date bind(due)` |

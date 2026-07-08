@@ -26,6 +26,7 @@ Each cell is `name = <initial> : <type>`.
 | **scalar** | `text`, `number`, `bool`, `email`, `uuid` |
 | **`list<scalar>`** | `list<text>`, `list<number>`, `list<uuid>` - a flat list of primitives |
 | **`list<Entity>`** | `list<Todo>` - a list of records (an `entity` you declared) |
+| **`list` (inferred)** | `cards = [ { title: "A", desc: "x" } ] : list` - a STATIC list initialized from a literal; the element shape is inferred from the literal, so **no `entity` is needed**. `each cards as c` still checks `c.title`. For presentational lists (feature grids, nav, tabs). |
 
 A `list` **must be initialized with `[]`** (an empty list) - never `{}` or a scalar. `todos = {} : list<Todo>`
 is the classic slip (`{}` is the *draft* seed for an entity, not a list); the oracle rejects it. A non-list value

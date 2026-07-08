@@ -126,11 +126,12 @@ const CHART_CSS = `
 .mu-chart-title { font-size: 14px; font-weight: 600; color: var(--color-text, #18181b); }
 .mu-chart-bar, .mu-chart-dot { fill: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); }
 .mu-chart-bar { rx: var(--chart-bar-radius, 4px); }
-.mu-chart-line { fill: none; stroke: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke-width: 2; }
-.mu-chart-area { fill: var(--chart-fill, var(--color-primary, #6366f1)); fill-opacity: 0.15; }
-.mu-chart-slice { fill: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke: var(--color-bg, #ffffff); stroke-width: 1.5; }
+.mu-chart-line { fill: none; stroke: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.mu-chart-area { stroke: none; } /* fill comes from the inline accent→transparent gradient __chart draws */
+.mu-chart-slice { fill: var(--c, var(--chart-fill, var(--color-primary, #6366f1))); stroke: var(--color-bg, #ffffff); stroke-width: 2; }
 .mu-chart-grid { stroke: var(--color-border, #e5e7eb); stroke-dasharray: var(--chart-grid-dash, 3 4); opacity: 0.6; }
-.mu-chart-tick, .mu-chart-xlabel { fill: var(--color-muted, #9ca3af); font-size: 9px; font-family: ui-monospace, monospace; }
+.mu-chart-tick, .mu-chart-xlabel { fill: var(--color-muted, #9ca3af); font-size: 10px; font-variant-numeric: tabular-nums; }
+.mu-chart-total { fill: var(--color-text, #18181b); font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .mu-chart-s0 { --c: var(--color-chart-1, #6366f1); } .mu-chart-s1 { --c: var(--color-chart-2, #8b5cf6); }
 .mu-chart-s2 { --c: var(--color-chart-3, #10b981); } .mu-chart-s3 { --c: var(--color-chart-4, #f59e0b); }
 .mu-chart-s4 { --c: var(--color-chart-5, #ef4444); } .mu-chart-s5 { --c: var(--color-chart-6, #06b6d4); }
