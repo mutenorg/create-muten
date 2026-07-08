@@ -10,9 +10,26 @@ muten build  [dir] [--url=https://site.com]   # static SSG → crawlable HTML pe
 muten check  [dir] [--json] [--watch]    # the oracle; --watch re-lints the app on every change
 muten map    [dir] [--json]
 muten add    <component...>              # copy components from an installed registry plugin into src/parts/
+muten new    <page|store|app> <name...>  # scaffold STRUCTURE (routes entry + route line + a compiling skeleton) — you fill CONTENT
 ```
 
 `[dir]` defaults to the current directory.
+
+## `muten new` — scaffold structure, not boilerplate
+
+Creates the app's *structure* so you write *content*, not plumbing. Every skeleton it writes **compiles**, so the app
+is valid (and never entry-less) the moment you scaffold it — then you flesh each file out. Idempotent (an existing file
+is left as-is). Operates on the current directory.
+
+```sh
+muten new page /  /inbox  /product/:id   # → src/pages/<name>/<name>.muten (with a # TODO) + its "/path" -> page line in src/app.muten.
+                                         #   "/" → the home page; a :param route adds `param id`. Creates src/app.muten if missing.
+muten new store orders  customers        # → src/orders.store etc. (a starter `entity` + `state { items = [ ] : list<…> }`)
+muten new app                            # → ensure src/app.muten (the routes entry) exists
+```
+
+Fill each scaffolded skeleton with the real content (replace the `# TODO`; give the store its real entity fields + seed
+rows), then `muten check`. Use `muten new` to add a page/store mid-build too — it wires the route + a compiling stub.
 
 ## `muten dev`
 

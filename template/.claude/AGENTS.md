@@ -82,6 +82,7 @@ Page class("flex flex-col gap-4 p-6") {
 
 ## Commands
 `npm run dev` (`muten dev` - esbuild dev server + surgical HMR) · `npm run build` (`muten bundle` - production CSR) · `npm run lint` (`muten check`).
+**Scaffold structure, not boilerplate:** `muten new page /  /inbox  /product/:id` and `muten new store orders customers` write a **compiling** skeleton (routes entry + route line + page/store stub) so you fill CONTENT, not plumbing — then flesh each file out and `muten check`. Use it to add a page/store mid-build too.
 
 ## Plugins (optional)
 Enabled in `muten.config`'s `plugins {}` block; `muten add <name>` installs + configures for you.
