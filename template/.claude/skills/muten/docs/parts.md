@@ -23,7 +23,9 @@ part Feature(item: Feature, onPick: action) {
 - Object params are read as `$item.field` inside the part.
 - Action params are called as `-> $onPick(arg)`.
 - A scalar param (`text`/`number`) also takes a **literal or a ref**: `Stat(label: "Users", value: userCount)`
-  - a quoted literal stays literal, a bare name is a ref.
+  - a bare name is a ref; a quoted literal is text — and it **interpolates** like every other string:
+    `Tier(price: "{money(p.amount)}")` renders the amount, reactively, in the caller's scope.
+  - you cannot pass a bare *expression* (`Tier(price: money(p.amount))` does not parse) — quote it and interpolate.
 
 ## Using a part
 
@@ -41,6 +43,23 @@ part Stat(label: text, value: number) {
 }
 # use it:
 Stat(label: "Active users", value: activeCount)
+```
+
+### Styling a part at the call site
+
+A part instance takes `class(…)` like any other node. It **appends** to the part root's own classes — exactly as a
+second `class()` on a primitive appends, never overwrites — so one instance can be tuned without touching the part:
+
+```muten
+Stat(label: "Revenue", value: mrr) class("col-span-2 bg-white")
+# the root renders class("stat col-span-2 bg-white")
+```
+
+`class()` is the ONLY modifier a call site may attach. `id()`, `on()`, `style()` and `disabled` carry identity and
+behaviour that belong **inside** the part's own definition. Add them there, or wrap the call:
+
+```muten
+Stack id("pricing") { Stat(label: "Revenue", value: mrr) }   # an anchor around the part
 ```
 
 ## `slot` - wrap arbitrary content

@@ -87,6 +87,26 @@ The router marks the current nav link for you: any internal `<a>` whose `href` e
 CSS (`.is-active { … }` or `a[aria-current="page"] { … }`); there is no `class(active when …)` to write and no
 route/location ref to read.
 
+## In-page anchors - a one-page nav that works
+
+A landing/marketing page navigates **within itself**, not between routes. Give the section a stable id and link to
+it with `#`; the browser scrolls natively (the router deliberately lets `#` hrefs pass through untouched).
+
+```muten
+Nav {
+  Link "Features" -> "#features"
+  Link "Pricing"  -> "#pricing"
+}
+Section id("features") { Title "What you get" h2 }
+Section id("pricing")  { Title "Plans" h2 }
+```
+
+The oracle **proves every link lands**: a `-> "#features"` with no `id("features")` on the page is `unknown-anchor`,
+and a `-> "/pricing"` with no such route in `app.muten` is `unknown-route`. So a dead navbar cannot ship.
+
+Do **not** point a section link at `-> "/"` — it reloads the page you are already on. `id()` is not allowed on `Page`
+(it already owns `mu-main`, the skip-link target); put it on the `Section`/`Stack` you want to scroll to.
+
 ## `<head>` metadata
 
 A page declares `meta { title "…" description "…" lang "…" }` → `<title>` + `<meta>` tags, applied on

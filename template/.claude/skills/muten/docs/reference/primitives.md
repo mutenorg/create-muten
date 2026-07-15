@@ -18,6 +18,9 @@ accessibility with [`aria()`](modifiers.md).
 | `Article` | `<article>` | self-contained content (card, post, comment, notification) that stands alone |
 | `List` | `<ul>` / `<ol>` | semantic list; `List ordered` → `<ol>`. Each **direct child renders as `<li>`** - an `each` inside is the common case. Prefer it over a `Stack` for any real list (a11y) |
 | `Details` | `<details>`+`<summary>` | native accordion: the positional string is the summary, the children are the content. `open` starts it expanded. Zero state/JS; reach for state + `when` only for a controlled or animated panel |
+| `Table` | `<table>` | native data table; its `Row` children are auto-grouped into a real `<thead>` (the `Row head` rows) + `<tbody>` (the rest). Style with `class()` |
+| `Row` | `<tr>` | a table row inside a `Table`; add the `head` keyword for a header row (its cells become `<th>`, placed in `<thead>`) |
+| `Cell` | `<td>` / `<th>` | a table cell inside a `Row`; positional string = its text (interpolates), or give it children for a rich cell (badge/icon/avatar). It's a `<th>` inside a `Row head` |
 
 ```muten
 Page class("flex flex-col gap-6") {
@@ -31,6 +34,25 @@ Page class("flex flex-col gap-6") {
   Footer { … }
 }
 ```
+
+### Tables — `Table` / `Row` / `Cell`
+
+`Table` is the native `<table>`: list your `Row`s (mark the header one `head`) and the compiler builds the real `<thead>`/`<tbody>`, so DaisyUI's `.table` (or any table CSS), zebra striping, and screen-reader table semantics all work. A dynamic table binds its body rows with an `each`; a cell is text (`Cell "…"`, interpolates) or rich children (`Cell { Span … class("badge") }`).
+
+```muten
+Table class("table") {
+  Row head { Cell "Task"  Cell "Owner"  Cell "Status" }
+  each issues as i {
+    Row {
+      Cell "{i.title}"
+      Cell "{i.owner}"
+      Cell { Span "{i.status}" class("badge") }
+    }
+  }
+}
+```
+
+Reach for `Table`/`Row`/`Cell` when **you** control the row/cell markup (mixed content, badges, links per cell). Reach for `DataTable @rows columns(a, b)` (below) when you just want a plain grid of a list's fields with sort/filter built in.
 
 ## Text
 

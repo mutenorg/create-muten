@@ -8,6 +8,6 @@
     "lint": "muten lint"
   },
   "dependencies": {
-    "@muten/core": "^0.0.40"
+    "@muten/core": "^0.0.43"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "create-muten",
-  "version": "0.0.45",
+  "version": "0.0.48",
   "description": "Scaffold a new Muten app.",
   "repository": {
     "type": "git",
@@ -30,5 +30,11 @@
     "index.js",
     "template",
     "template-tauri"
-  ]
+  ],
+  "scripts": {
+    "test": "node test/combos.mjs"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0"
+  }
 }

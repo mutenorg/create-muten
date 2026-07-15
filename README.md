@@ -15,9 +15,9 @@ Muten ships as **two** packages - the same split as `vue` ↔ `create-vue`:
 
 - **[`@muten/core`](https://www.npmjs.com/package/@muten/core)**: the engine (compiler + runtime +
   the runner: `muten dev` / `muten bundle`). Your app installs it as a normal dependency and it stays up to date on its own.
-- **`create-muten`** (this package) - a tiny, **zero-dependency** CLI whose only job is to generate a
-  new project already wired to the engine: `index.html`, a `theme.muten`, a first
-  page and the right `package.json`.
+- **`create-muten`** (this package) - a tiny CLI whose only job is to generate a new project already wired to
+  the engine: `index.html`, a `theme.muten`, a first page, the AI reference under `.claude/`, and the right
+  `package.json`.
 
 You run `create-muten` **once** to scaffold; after that you just work inside your project.
 
@@ -65,6 +65,7 @@ In an interactive terminal it prompts for a few things (defaults in parentheses)
 | **Add DevTools?** | `Y` / `n` — in-app DevTools ([`@muten/devtools`](https://www.npmjs.com/package/@muten/devtools)), dev-only | `Y` |
 | **Add Vercel deploy config?** | `Y` / `n` | `n` |
 | **Desktop app (Tauri)?** | `Y` / `n` | `n` |
+| **Android app (Capacitor)?** | `Y` / `n` — an installable `.apk` | `n` |
 | **Package manager** | `npm` / `pnpm` / `yarn` / `bun` | the one that launched it |
 | **Install deps and start dev now?** | `Y` / `n` | `Y` |
 
@@ -72,10 +73,17 @@ In an interactive terminal it prompts for a few things (defaults in parentheses)
 ship no framework; `Tailwind CSS` adds `tailwindcss` + `@import "tailwindcss"` (the native runner compiles it
 in-process — no Vite); `DaisyUI` adds its component classes on top (and brings Tailwind). You always style via `class("…")`.
 
-**Targets are independent opt-ins**: web, desktop, both, or neither, from the same `.muten` source:
+**Targets are independent opt-ins**: web, desktop, mobile, any mix, or none - all from the same `.muten` source.
+There is no per-target build: the app is one `muten bundle`, and each target is a shell around it.
 - **Vercel** writes a `vercel.json` so muten's real-path routes don't 404 on a hard refresh (SPA fallback to `index.html`).
-- **Tauri** adds `src-tauri/` (a native desktop app - ships the OS webview, *not* a browser) + a `tauri` script:
-  `npm run tauri dev` / `tauri build`. Needs the [Rust toolchain](https://rustup.rs) installed (not auto-installed).
+- **Tauri** adds `src-tauri/` (a native desktop app - ships the OS webview, *not* a browser):
+  `npm run tauri:dev` / `npm run tauri:build`. Needs the [Rust toolchain](https://rustup.rs) (not auto-installed).
+- **Android** adds `capacitor.config.json`, `npm run android` and a CI workflow. `npm run android` is the whole
+  build - it checks the toolchain, generates `android/`, bundles, syncs and runs Gradle - and prints the `.apk`.
+  Nothing to install: `.github/workflows/apk.yml` builds it on a runner that already has the Android SDK. Want it
+  locally too? `muten android --install` fetches a JDK 21 + the SDK into `~/.muten` (no PATH, no admin;
+  `rm -rf ~/.muten` uninstalls). **No `.apk` needed at all** for an installable app: `public/manifest.webmanifest`
+  ships by default, so any muten app installs from the browser (Chrome ▸ Install) with an icon and no URL bar.
 
 ## Styling
 
@@ -117,6 +125,7 @@ create-muten my-app --css --no-install    # just scaffold, decide later
 | `--devtools` / `--no-devtools` | add (or skip) the in-app DevTools plugin `@muten/devtools` (default: added interactively) |
 | `--vercel` | add `vercel.json` (SPA fallback so real-path routes work on Vercel) |
 | `--tauri` | add `src-tauri/` - a native desktop app (needs the Rust toolchain) |
+| `--android` | an installable `.apk`: `capacitor.config.json` + `npm run android` + a CI workflow. `npm run android` is the whole build (toolchain check → `android/` → bundle → sync → Gradle → the file); the workflow does the same with nothing installed locally; `muten android --install` fetches a JDK + the SDK into `~/.muten` if you want it on your machine |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager to use (default: detected) |
 | `--no-install` | scaffold only - don't install or start the dev server |
 | `--help` | print usage and exit |
@@ -132,12 +141,17 @@ my-app/
 ├─ muten.config            # the build, in muten (dev port; theme adapter with Tailwind/DaisyUI)
 ├─ theme.muten             # your design tokens: spacing, fonts, weights, breakpoints
 ├─ package.json            # depends on @muten/core (the runner is built in)
+├─ .claude/                # the full muten reference your AI reads: AGENTS.md + a Claude skill
+├─ public/                 # copied as-is: the logo, and manifest.webmanifest (makes the app installable)
 └─ src/
    ├─ app.muten            # the ROOT: routes (+ an optional persistent shell)
    ├─ styles.css           # your look (.scss if you chose SCSS)
    └─ pages/
       └─ home/home.muten   # a page - the folder name is its route
 ```
+
+Each target adds its own folder next to these, and nothing else changes: `--tauri` → `src-tauri/`,
+`--android` → `capacitor.config.json` + `.github/workflows/apk.yml`, `--vercel` → `vercel.json`.
 
 There is **no hand-written `main.js`**: muten's runner compiles `src/app.muten` into the app's entry,
 so the whole app is `.muten` from the first line.
@@ -151,10 +165,12 @@ declarative 80% - CRUD, dashboards, catalogs, content, internal tools. For the r
 **couple in other tech** through bounded escapes. Reach for the **lowest tier that works**:
 
 - **Pure muten**: CRUD / SaaS / catalog / dashboard / content: pages, routing (paths are **quoted strings**: `routes { "/" -> home  "/404" -> notfound }`; `Link "label" -> "/path"`; guard redirects `else "/login"`), `state`/`store` (with page->store action composition), `query` over REST, `Form` (text/number/email/bool/enum/date/password/textarea + validation), `DataTable`, `when`/`each`, SSG + SEO, and the bounded **list toolkit**: inline objects, `patch where`/`remove where` edits, `each...where` filter, aggregates (`sum`/`count`/`avg`/`min`/`max by`), `sort`/`sortDesc by` (literal field or a `text` state for a user-chosen column), `take(n)` pagination, `toggle`. `use` functions callable as **statements** inside `action`/`effect` (side effects: persist, scroll, analytics). `on(enter: action)` on inputs for Enter-to-submit without `Custom`. The declarative 80%, zero extra deps.
-- **muten + the platform** *(no framework runtime)* - native HTML (`<input type="date">`, `<dialog>`) + `class()`,
-  CSS libs (Tailwind / DaisyUI), **vanilla JS via `Custom`** (charts, maps, date-pickers, rich-text, grids),
-  `use fmt from "./lib.ts"` for any JS logic. Almost every "hard widget" lands here - muten ships zero framework
-  runtime, so there is no React/Svelte escape; foreign UI comes in as a vanilla `Custom` component.
+- **muten + the platform** *(no framework runtime)* - native HTML + `class()`, CSS libs (Tailwind / DaisyUI),
+  **vanilla JS via `Custom`** (maps, rich-text editors, canvas/WebGL), `use fmt from "./lib.ts"` for any JS logic.
+  muten ships zero framework runtime, so there is no React/Svelte escape; foreign UI comes in as a vanilla
+  `Custom` component. **Check the primitives first** - `Chart`, `Icon`, `Video`, `Image`, `Select`, `Date`,
+  `Range`, `Checkbox`, `Password`, `Number` and drag-and-drop (`draggable`/`droptarget`) are all native and
+  oracle-checked. Escaping for one of those ships JS you didn't need and loses the compiler at that seam.
 
 **Deploy, honestly:** `npm run dev` runs both tiers. For production:
 
@@ -174,7 +190,6 @@ These are honest gaps found during stress-testing. They are tracked; none are de
 
 - **`muten build`** ships styled, SSR'd HTML, but a no-bundler static export can't bundle `use` functions or keep store state across full-page navigations (see Deploy above) - use `muten bundle` for a stateful app.
 - `DataTable` renders raw cell values; no per-column formatting yet (use `each` + a `Part` for formatted cells).
-- No standalone `Select`: a `Form` auto-generates one for enum fields; outside a `Form`, build a button group.
 - An `Icon` name is a static literal; a per-value icon is a `match` over static Icons, a data-URL icon is an `Image`.
 - `Form` renders all entity fields (no conditional fields), enum fields cannot be `required`. Field types: `text`/`number`/`email`/`bool`/`enum`/`date`/`password`/`textarea` (an unknown type is flagged `unknown-field-type`; drop it to a `Custom`).
 - `query x live` (WebSocket) requires the server to send an `id` per row for keyed diffing.

@@ -35,7 +35,8 @@ escapes - `use` for JS functions, `Custom` for a vanilla-JS widget - never as th
 src/
   app.muten                    ROOT - routes { "/url" -> page }  (+ optional shell { … slot … })
   pages/<route>/<route>.muten  a page; the folder name IS the route
-  parts/<name>.muten           reusable component (composition, inlined at build)
+  parts/<name>.muten           reusable component (composition, inlined at build). `Part(…) class("…")` at the call
+                               site appends to the part root; `class` is the ONLY modifier allowed there.
   components/<Name>.js          escape hatch (host JS) used via the `Custom` primitive
 theme.muten                    design tokens: space, font, weight, breakpoints
 src/styles.css                 your look (.scss if you picked SCSS)
@@ -75,7 +76,7 @@ Page class("flex flex-col gap-4 p-6") {
 - **React / Vue / Svelte: NO - at all.** Muten ships ZERO framework runtime; pages are `.muten` (vanilla DOM).
   A widget Muten can't express enters as a vanilla `Custom` component (SKILL §13); JS logic via `use` (§14) -
   for the foreign piece, never the whole UI.
-- Routing uses **quoted string paths** (`routes { "/path" -> page }`, `Link -> "/x"`, History API; deploy serves `index.html` for any path); params (`"/product/:id"` → `param id`). SEO: `meta { title "…" description "…" }` per page → `<head>` tags (og auto-derived). Shell has no local state → use a
+- Routing uses **quoted string paths** (`routes { "/path" -> page }`, `Link -> "/x"`, History API; deploy serves `index.html` for any path); params (`"/product/:id"` → `param id`). **In-page nav = anchors:** `Section id("features")` + `Link "Features" -> "#features"` (native scroll). NEVER point a section link at `-> "/"` — it reloads the page you are on. The oracle proves every link lands: `unknown-anchor` / `unknown-route`. SEO: `meta { title "…" description "…" }` per page → `<head>` tags (og auto-derived). Shell has no local state → use a
   `.store`. Flip a bool with `x.toggle()`. All styling - layout and visuals - goes through `class()`.
 - **Known limits (plan around these):** the runnable builds are `muten dev` (local dev, surgical HMR) and `muten bundle` (production CSR); `muten build` is the zero-JS SSG (styled + SSR'd, but can't bundle `use` functions or keep store state across full-page navigations). `Form` renders ALL entity fields (types text/email/number/bool/enum/date/password/textarea; **no** conditional fields; an unknown type is flagged `unknown-field-type`; an enum can't be `required`). `DataTable` cells are raw (format with `each`). An `Icon` name is a static literal - a per-value icon is `match` over static Icons, a data-URL icon is an `Image`. `Custom` inputs need `@` and are a snapshot. `query x live` needs the server to send a row `id`. A multi-month / date-range calendar isn't native (single-date `Date` is) → that's a `Custom`.
 - The full reference (stores, routing, theme, every primitive, the limits in §3) is in [`skills/muten/SKILL.md`](skills/muten/SKILL.md).

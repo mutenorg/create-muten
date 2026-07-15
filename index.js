@@ -2,11 +2,11 @@
 // create-muten — scaffold a new Muten app, with modern interactive prompts (@clack/prompts).
 //
 //   npm create muten@latest [name]              (or: npx create-muten)
-//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]
+//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--no-install]
 //
 // Stylesheet (CSS or SCSS) is the base; Tailwind is an optional add-on ON TOP of CSS (it's a styling
 // library, not a stylesheet replacement). Interactive in a TTY; flags / non-TTY make it scriptable.
-import { cpSync, existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +22,10 @@ const PMS = ['npm', 'pnpm', 'yarn', 'bun'];
 // the starter reset — written by the CLI so the template stays pure .muten (no default styles file).
 const RESET = `/* Your look. Muten ships STRUCTURE (primitives); the LOOK lives here, applied with class("…"). */
 * { box-sizing: border-box; }
+/* In-page anchors (\`Link -> "#features"\` → \`Section id("features")\`) glide instead of jumping. Honour the OS
+   setting: a user who asked for less motion gets the instant jump. Nothing else in muten needs JS for this. */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; font: 15px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #111; }
 h1, h2, h3, h4, h5, h6, p { margin: 0; }
 h1 { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
@@ -30,7 +34,7 @@ h1 { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
    the #1 "my sidebar is sideways" surprise. Button/Link default to an inline row (icon + label, centered). */
 .mu-stack, .mu-page, .mu-header, .mu-nav, .mu-sidebar, .mu-footer, .mu-section, .mu-article, .mu-list { display: flex; flex-direction: column; min-height: 0; }
 .mu-list { margin: 0; padding: 0; list-style: none; }
-.mu-button, .mu-link { display: inline-flex; align-items: center; gap: 6px; }
+.mu-button, .mu-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 /* the shell's slot wrapper fills the space left by a sidebar/header (else a flex-row shell collapses the page). */
 .muten-outlet { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
   .muten-outlet > * { flex: 1 0 auto; min-height: 0; }
@@ -60,7 +64,7 @@ const tailwindStyles = (daisyui) => `@import "tailwindcss";${daisyui ? '\n@plugi
   body { @apply bg-base-200 text-base-content; }` : ''}
   .mu-stack, .mu-page, .mu-header, .mu-nav, .mu-sidebar, .mu-footer, .mu-section, .mu-article, .mu-list { display: flex; flex-direction: column; min-height: 0; }
   .mu-list { margin: 0; padding: 0; list-style: none; }
-  .mu-button, .mu-link { display: inline-flex; align-items: center; gap: 6px; }
+  .mu-button, .mu-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .muten-outlet { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
   .muten-outlet > * { flex: 1 0 auto; min-height: 0; }
   /* sticky footer, automatic: shell fills the viewport, its content grows, short pages still pin Footer down. */
@@ -294,6 +298,81 @@ no server, no URL bar, no fallback needed).
 - Custom icon: \`${pm} run tauri icon path/to/logo.png\` regenerates \`src-tauri/icons/\`.
 `;
 
+// The .apk WITHOUT the Android SDK on your machine: GitHub's ubuntu runner already ships it, so CI builds the
+// file and you download it from the run. That is EAS Build minus the company — and it is why nothing here ever
+// needs to auto-install a toolchain: the machine that has one is free.
+const APK_WORKFLOW = (pm) => `# Builds the installable .apk in CI. Nothing to install locally: GitHub's ubuntu runner
+# already ships the Android SDK. Push (or run this by hand) -> download "app-debug-apk" from the run's Artifacts.
+# To build on your own machine instead: \`${pm} run android\` — it says what's missing if anything is.
+name: apk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+${pm === 'bun' ? '      - uses: oven-sh/setup-bun@v2\n' : '      - run: corepack enable\n'}      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'   # the generated Gradle supports up to 21 — a NEWER JDK fails before compiling
+      - run: ${pm} install
+      # one command: it finds the runner's JDK + SDK, regenerates the gitignored android/, bundles, syncs,
+      # and runs Gradle. Same command you run locally, so CI can't drift from your machine.
+      - run: ${pm} run android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+`;
+
+// Android = the SAME web build (dist/) bundled into an .apk as local assets, loaded by a system-WebView Activity.
+// Capacitor OWNS the android/ project + the yearly targetSdk treadmill — muten just hands it dist/. Offline by
+// construction: nothing is fetched, so no hosting and no service worker.
+const ANDROID_NOTE = (pm) => `
+## Android app (.apk)
+This app also ships as an installable Android app. The SAME \`.muten\` frontend runs from local assets inside a
+system-WebView — build the UI exactly like the web app (the SPA routes as-is; no server, no URL bar).
+**Don't want the Android SDK on your machine?** You don't need it. \`.github/workflows/apk.yml\` builds the .apk in
+CI — GitHub's runner already ships the SDK. Push, then download \`app-debug-apk\` from the run's Artifacts. Nothing
+below applies unless you want a LOCAL build (which you do want for an emulator, or to iterate without pushing).
+
+### Building it locally
+- \`${pm} run android\` — **the .apk.** One command, the whole chain: checks the toolchain, generates \`android/\` if
+  missing, bundles, syncs, runs Gradle, prints the file. Re-run it after any change; it is the only one you need.
+- It needs a **JDK 17-21 + the Android SDK**. If they're missing it says so and stops — run
+  \`npx muten android --install\` and it fetches both into \`~/.muten\` (no PATH, no registry, no admin;
+  \`rm -rf ~/.muten\` uninstalls) and points this project at them, so nothing needs env vars. ~800MB, once.
+- A TOO-NEW JDK fails exactly as hard as a missing one, and Gradle's own error for it ("Unsupported class file
+  major version 69") tells you nothing — \`npx muten android\` says it in words instead.
+- The .apk lands in \`android/app/build/outputs/apk/debug/\`. It is debug-signed, so it installs on any phone:
+  \`adb install -r <that file>\`, or copy it across and open it.
+- \`npx cap open android\` opens the project in Android Studio, if you want the IDE or an emulator.
+
+### Live reload
+- \`${pm} run android:live\` — deploys to a connected device/emulator with the WebView pointed at \`${pm} run dev\`,
+  so edits hot-reload INSIDE the native app. The URL is set from the CLI and never written to
+  \`capacitor.config.json\`, so a shipped .apk can't end up pointing at your laptop.
+- **You probably don't need it.** \`${pm} run dev\` prints a \`/_qr\` page: scan it and the same app runs on your
+  phone's browser with the same hot reload, with no SDK, no cable and no Gradle. Reach for \`android:live\` only
+  when you need something the browser doesn't have — a native plugin like camera or push.
+
+### Shipping it
+- \`appId\` in \`capacitor.config.json\` is a placeholder (\`com.muten.*\`) — change it to a domain you own BEFORE
+  publishing; it is the permanent identity of the app on Play and can never be changed after the first upload.
+- Play Store: upload an **.aab**, not the .apk (\`./gradlew bundleRelease\` from \`android/\`). A personal account also
+  needs 12 testers for 14 continuous days before production access — that clock is wall time, so start it early.
+- The app's icon/name for the launcher come from \`android/app/src/main/res/\` — regenerate them from your logo with
+  a tool like \`@capacitor/assets\`; \`public/manifest.webmanifest\` only covers the installable-web-app path.
+`;
+
 // Deploy on Vercel: muten routes are real paths (History API), so an unmatched path must fall back to
 // index.html (else a hard refresh of /about 404s). Static assets are served first; only routes rewrite.
 const VERCEL_JSON = `{
@@ -319,7 +398,7 @@ async function main() {
   const has = (f) => argv.includes(f);
   const val = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
   if (has('-v') || has('--version')) { console.log(PKG.version); return; }
-  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--pm npm|pnpm|yarn|bun] [--no-install]'); return; }
+  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--no-install]'); return; }
 
   let name = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--pm')[0];
   let style = has('--scss') ? 'scss' : has('--css') ? 'css' : undefined;     // the base stylesheet
@@ -327,6 +406,7 @@ async function main() {
   let daisyui = has('--daisyui') ? true : undefined;                          // component classes on Tailwind
   let vercel = has('--vercel') ? true : undefined;                            // a vercel.json with the SPA fallback rewrite
   let tauri = has('--tauri') ? true : undefined;                              // src-tauri/ → native desktop app
+  let android = has('--android') ? true : undefined;                          // capacitor.config.json → installable .apk
   let devtools = has('--devtools') ? true : has('--no-devtools') ? false : undefined; // @muten/devtools plugin (dev-only overlay)
   let pm = val('--pm');
   let install = has('--no-install') ? false : undefined;
@@ -353,6 +433,7 @@ async function main() {
     if (devtools === undefined) devtools = keep(await confirm({ message: 'Add DevTools? (@muten/devtools — in-app tree, editable state, time-travel; dev-only, zero prod cost)', initialValue: true }));
     if (vercel === undefined) vercel = keep(await confirm({ message: 'Add Vercel deploy config? (vercel.json — fixes real-path routing on Vercel)', initialValue: false }));
     if (tauri === undefined) tauri = keep(await confirm({ message: 'Desktop app? (Tauri — native window, ships the OS webview, needs Rust)', initialValue: false }));
+    if (android === undefined) android = keep(await confirm({ message: 'Android app? (Capacitor — an installable .apk; builds in CI, or `muten android --install` gets the toolchain)', initialValue: false }));
   }
   name = name || 'muten-app';
   style = style || 'css';
@@ -361,6 +442,7 @@ async function main() {
   if (daisyui === undefined) daisyui = false;
   if (vercel === undefined) vercel = false;
   if (tauri === undefined) tauri = false;
+  if (android === undefined) android = false;
   if (devtools === undefined) devtools = false; // non-TTY default: opt-in via --devtools
   if (tailwind) style = 'css';                  // Tailwind v4 is CSS-native (not SCSS)
   pm = pm || dpm;
@@ -414,10 +496,38 @@ async function main() {
     pkg.scripts = { ...pkg.scripts, tauri: 'tauri', 'tauri:dev': 'tauri dev', 'tauri:build': 'tauri build' };
     appendAgents(TAURI_NOTE(pm));
   }
+  if (android) {                                // Android wrapper around the same web build (dist) -> an .apk
+    writeFileSync(join(target, 'capacitor.config.json'), JSON.stringify({
+      appId: `com.muten.${name.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'app'}`, // reverse-DNS placeholder; own the domain before publishing
+      appName: name,
+      webDir: 'dist',                           // what `muten bundle` writes — the SPA, so the .store survives navigation
+    }, null, 2) + '\n');
+    // devDeps, not deps: nothing from Capacitor is imported by the .muten app or reaches its bundle — the .apk is
+    // built from dist/, so the app keeps shipping zero runtime dependencies.
+    addDev({ '@capacitor/cli': '^8.4.2', '@capacitor/core': '^8.4.2', '@capacitor/android': '^8.4.2' });
+    // TWO scripts, deliberately. `muten android --build` already chains toolchain-check → cap add → bundle → sync
+    // → gradlew, so init/sync/check/open as separate scripts only made you learn an order the tool knows. The
+    // toolchain install stays unscripted on purpose: it runs once per machine ever, and the doctor prints the
+    // exact line at the moment you need it — better than a script you must first know exists.
+    pkg.scripts = {
+      ...pkg.scripts,
+      'android': 'muten android --build',
+      // `--live-reload` sets the URL from the CLI and does NOT persist it into capacitor.config.json — so a
+      // shipped .apk can never end up pointing at somebody's 192.168.*. Port matches `muten dev`'s default.
+      'android:live': 'cap run android --live-reload --port 5173',
+    };
+    mkdirSync(join(target, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(target, '.github', 'workflows', 'apk.yml'), APK_WORKFLOW(pm)); // the .apk with no local toolchain
+    // android/ is regenerated by `cap add android`, like dist/ by the build: disposable, so it stays out of the
+    // diff and out of the AI's way. CI rebuilds it from scratch every run, which also proves it stays disposable.
+    const gitignore = join(target, '.gitignore');
+    if (existsSync(gitignore)) writeFileSync(gitignore, `${readFileSync(gitignore, 'utf8')}android/\n`);
+    appendAgents(ANDROID_NOTE(pm));
+  }
   if (styling || plugins.length) writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes, plugins })); // the build config, in muten (plugins + theme adapter); css-only with no plugins is zero-config
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-  const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}`;
+  const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}${android ? ' + Android' : ''}`;
   if (!install) {
     if (process.stdin.isTTY) { note(`cd ${name}\n${pm} install\n${pm} run dev`, 'Next steps'); outro(color.green(`Created ${name}  (${desc})`)); }
     else console.log(`\n  Created ${name} (${desc}, ${pm})\n  cd ${name} && ${pm} install && ${pm} run dev\n`);

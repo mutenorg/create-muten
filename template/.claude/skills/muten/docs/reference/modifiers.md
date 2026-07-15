@@ -20,6 +20,7 @@ to the sibling form).
 | `on(event: action)` | any | wire a DOM event to an action |
 | `aria(k: expr)` | any | `aria-*` / `role` attributes - accessibility, reactive |
 | `style(k: "…")` | any | bind a **dynamic CSS value** to state via a CSS variable `--k` (progress, transforms) |
+| `id("…")` | any (not `Page`) | a stable DOM id — the target an in-page anchor scrolls to: `Section id("features")` + `Link "Features" -> "#features"`. A **static literal**, so the oracle proves every `#anchor` lands |
 
 ## `class(...)`
 
@@ -42,7 +43,8 @@ Works on **any** element; the event name is any DOM event:
 
 ```muten
 Stack on(mouseenter: preview)
-SearchField bind(q) on(enter: search)        # `enter` is synthetic: fires only on the Enter key
+SearchField bind(q) on(enter: search)        # `enter` is synthetic: Enter submits (and prevents the newline);
+                                             # in a Textarea, Shift+Enter still makes a newline
 Button "Save" -> save(draft)                  # `-> action(arg)` is the form for "click + an argument"
 ```
 

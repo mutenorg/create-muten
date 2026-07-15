@@ -4,7 +4,12 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover is what makes env(safe-area-inset-*) non-zero — without it an installed app is
+       letterboxed on a notched phone. public/manifest.webmanifest makes this page installable (open it on a
+       phone, then Chrome ▸ Install) and is also what `bubblewrap init --manifest=<url>` reads to build an .apk:
+       edit the name/icon/theme_color there. `muten dev` prints a /_qr page to open this on a phone. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>Muten app</title>
 </head>
 <body>
