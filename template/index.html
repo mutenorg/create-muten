@@ -10,6 +10,13 @@
        edit the name/icon/theme_color there. `muten dev` prints a /_qr page to open this on a phone. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="manifest" href="/manifest.webmanifest">
+  <!-- iOS Safari ignores most of the manifest, so "Add to Home Screen" needs its own tags: standalone (no URL
+       bar), a title, and an apple-touch-icon (Safari won't use the manifest's PNG). This is the free, no-Mac,
+       no-App-Store way to install on an iPhone — the Apple counterpart to the manifest's Android install. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Muten">
+  <link rel="apple-touch-icon" href="/icon-512.png">
   <title>Muten app</title>
 </head>
 <body>

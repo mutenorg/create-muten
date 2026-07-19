@@ -364,6 +364,20 @@ below applies unless you want a LOCAL build (which you do want for an emulator, 
   phone's browser with the same hot reload, with no SDK, no cable and no Gradle. Reach for \`android:live\` only
   when you need something the browser doesn't have — a native plugin like camera or push.
 
+### Native abilities (@muten/mobile)
+Mobile features are NOT in the muten core (the language stays "web or android?"-agnostic); they come from the
+\`@muten/mobile\` plugin, wired here for you (\`plugins { mobile {} }\` in \`muten.config\`). Use them from an escape
+(\`~/lib/*.ts\`) with a \`use\` import — never reach for raw Capacitor:
+\`\`\`ts
+import { notify, vibrate, share, isNative, startWatch } from "@muten/mobile";
+notify("Title", "Body", "/route");   // native status-bar notification; tapping it opens the app at /route
+vibrate();                            // haptic tap (web: navigator.vibrate)
+share("text", "https://url");         // native share sheet
+\`\`\`
+\`startWatch({ url, rules })\` runs a background foreground-service watcher that notifies even when the app is
+closed. Everything falls back gracefully on the web, so the same code runs everywhere. Heavy sensors
+(camera/QR/geo/biometrics) stay a \`Custom\` escape — the bar for a native ability is high, like \`Custom\` itself.
+
 ### Shipping it
 - \`appId\` in \`capacitor.config.json\` is a placeholder (\`com.muten.*\`) — change it to a domain you own BEFORE
   publishing; it is the permanent identity of the app on Play and can never be changed after the first upload.
@@ -505,6 +519,11 @@ async function main() {
     // devDeps, not deps: nothing from Capacitor is imported by the .muten app or reaches its bundle — the .apk is
     // built from dist/, so the app keeps shipping zero runtime dependencies.
     addDev({ '@capacitor/cli': '^8.4.2', '@capacitor/core': '^8.4.2', '@capacitor/android': '^8.4.2' });
+    // @muten/mobile: native notifications (incl. a background foreground-service watcher), tap-to-open deep-links,
+    // haptics + share — used via `use … from "@muten/mobile"`. Its android/ Capacitor module is auto-discovered by
+    // `cap sync`; the optional @capacitor/* peers below make notify()/vibrate()/share() work natively out of the box.
+    addDev({ '@muten/mobile': '^0.0.2', '@capacitor/local-notifications': '^8.0.0', '@capacitor/haptics': '^8.0.0' });
+    plugins.push('mobile'); // -> muten.config `plugins { mobile {} }` (registry-less: the loader skips it, the `use` seam does the work)
     // TWO scripts, deliberately. `muten android --build` already chains toolchain-check → cap add → bundle → sync
     // → gradlew, so init/sync/check/open as separate scripts only made you learn an order the tool knows. The
     // toolchain install stays unscripted on purpose: it runs once per machine ever, and the doctor prints the
