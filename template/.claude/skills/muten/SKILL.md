@@ -285,7 +285,7 @@ A bare string is the node's main prop. `{ }` = children. Style everything (layou
 | `Header`/`Nav`/`Sidebar`/`Footer` | landmarks | `Header class("flex flex-row justify-between items-center") { … }` |
 | `Section`/`Article` | sectioning: a page band / self-contained content (`<section>`/`<article>`) | `Section class("py-16") { Title "Features" h2  … }` |
 | `List` | semantic list `<ul>` (`List ordered` → `<ol>`); each direct child renders as `<li>` | `List class("flex flex-col gap-2") { each todos as t { Span "{t.title}" } }` |
-| `Details` | native accordion `<details>`; positional string = summary; add `open` to expand | `Details "Shipping" { Text "Free returns." }` |
+| `Details` | native accordion `<details>`; positional string = summary; add `open` to expand; `group("faq")` on siblings = one open at a time | `Details "Shipping" { Text "Free returns." }` |
 | `Table`/`Row`/`Cell` | native `<table>`; `Table` groups `Row`s into real `<thead>`/`<tbody>`; `Row head` → header row (`<th>`); `Cell` = a `<td>` (text or children) | `Table class("table") { Row head { Cell "Task"  Cell "Status" }  each rows as r { Row { Cell "{r.task}"  Cell "{r.status}" } } }` |
 | `Text` | paragraph, interpolates | `Text "Hi, {user.name}"` |
 | `Title` | heading; level keyword | `Title "Dashboard" h2` |

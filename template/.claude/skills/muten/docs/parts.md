@@ -106,6 +106,24 @@ Rules (kept deliberately small):
 Like everything else a part does, the slot **inlines at build**: `Panel { … }` becomes the wrapper tree with the
 children spliced in, zero runtime, identical bundle.
 
+## A part brings its own `use`
+
+A part that calls a function (`t(…)`, a formatter) imports it itself, at the top of the part file, exactly like a
+page does. Whichever page or layout inlines the part gets that import too: the page does not have to repeat it.
+
+```muten
+# src/parts/price.muten
+use money from "~/lib/price.ts"
+part Price(value: number) {
+  Span "{money($value)}" class("price")
+}
+```
+
+- **One import per name.** If the page already imports `money`, the page's own `use` wins; two parts naming the
+  same function share one import.
+- **Relative paths are anchored to the app.** `use x from "../lib/x.ts"` in `src/parts/` resolves from the part's
+  own folder, wherever the part ends up inlined. `~/…` and package imports resolve from anywhere already.
+
 ## When to use a part vs a `Custom`
 
 | Need | Reach for |

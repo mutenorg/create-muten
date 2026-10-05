@@ -204,10 +204,13 @@ Page class("flex flex-col gap-2 p-6") {
 - **Type-checked.** The field must exist on the row entity and its type must match the input - **text-like**
   for `SearchField`/`Password`/`Select`, **bool** for `Checkbox`. A missing field or a mismatch is a
   `bind-type` error (`bind(x.nope)` → error), the same rule a standalone bind follows.
-- **Settable page-`state` source only.** The `each` must iterate a **settable page list state** (e.g. `state {
-  rows = [] : list<Todo> }`). A **`.store` or `query` row is NOT directly `bind`-able** — its rows change only
-  through actions, so `Checkbox bind(t.done)` over `todos.items` is a **`bind-type` error**. Change a store/query
-  row with an action instead:
+- **Settable page-`state` list, OR a `query` row with a TEXT input.** A **settable page list state** (e.g.
+  `state { rows = [] : list<Todo> }`) is fully bindable. A **`query`-backed row** is bindable too, but only with a
+  **text input** (`SearchField`/`Textarea`): typing patches the query's `.data` immutably by id (instant,
+  caret-safe) and PERSISTS the row with a `PUT` on `change` (blur), reconciling/reverting exactly like
+  `list.update` — so `each msgs as m { Textarea bind(m.body) }` edits a server row IN PLACE, no draft, no save
+  button. A **non-text input over a query row (Checkbox/Select/Date)** stays read-only, and a **`.store` row** is
+  never bindable (its rows change only through store actions) — for those, change the row with an action:
   - **bool toggle** (the common one) — one line, no wrapper: `Checkbox checked(t.done) -> todos.toggle(t.id)`.
     `checked(<bool>)` displays the row's value one-way; `-> action` fires the store `patch`. A plain `checked(expr)`
     with no `->` is a **read-only** display checkbox.
@@ -244,7 +247,7 @@ This is what makes **editable tables**, **inline edit**, and **data-driven forms
 | membership | `list contains x` · `(list.count where field == x) > 0` |
 | add ⇄ remove | `list.toggle(x)` (in an action) |
 | edit in place | `list.patch where … with { … }` (in an action) |
-| inline field edit | `each list as x { … bind(x.field) … }` (settable list; read-only over a `query`) |
+| inline field edit | `each list as x { … bind(x.field) … }` (settable list; a `query` row too, but only a TEXT input, which PUTs on blur) |
 
 Anything beyond these (an arbitrary transform) is a [`use`](escapes.md) function - a deliberate, checked
 border, not a hole in the language.

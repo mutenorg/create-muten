@@ -80,6 +80,51 @@ routes { "/" -> home  "/about" -> about }
 
 The shell also emits a keyboard **skip-link** to the content automatically (see [Accessibility](accessibility.md)).
 
+## Layouts (chrome for a group of routes)
+
+When only SOME routes share chrome - an app's sidebar after login, but not the public pages - declare a `layout`
+and mount routes `in` it. The router mounts the layout **once** and keeps it while the user moves between its routes:
+only the page inside its `slot` is swapped, so the sidebar is never rebuilt (no flicker, no lost scroll, no
+re-running effects). A route outside the layout drops it; coming back mounts it again.
+
+```muten
+layout app {
+  Sidebar()          # a layout may call parts (a shell cannot)
+  slot               # exactly one: where the route's page mounts
+}
+routes {
+  "/"          -> home                                            # no layout: the page mounts directly
+  "/dashboard" -> dashboard in app guard auth.loggedIn else "/login"
+  "/settings"  -> settings  in app guard auth.loggedIn else "/login"
+}
+```
+
+- Don't call the sidebar part from each page: that rebuilds it on every navigation. Put it in the layout.
+- `shell` still wraps everything (layouts mount inside its `slot`). Use `shell` for chrome on EVERY route, a
+  `layout` for chrome on a group of them.
+- The layout renders as `div.mu-layout` holding your chrome and a `div.muten-outlet` (the page's slot). Style
+  `.mu-layout` as the frame (e.g. a grid: sidebar + content), or give `.mu-layout, .mu-layout > .muten-outlet`
+  `display: contents` when your chrome is `position: fixed` and the page should keep filling the shell as before.
+- `muten check` flags a route `in` an undeclared layout, a layout without exactly one `slot`, and an unused layout.
+
+## Back buttons that never leave the app
+
+The router stamps every entry it pushes with how many steps into the app it is: `history.state.muDepth` (0 on the
+page the visitor landed on, +1 per navigation; a guard redirect keeps the depth). A back button reads it: above 0,
+`history.back()` stays inside the app; at 0 (the page was opened from a link, an email or a reload) go to the app's
+default screen instead, never to a dead button or out of the app:
+
+```ts
+// ~/lib/url.ts
+export function backOrHome(): boolean {
+  const state: { muDepth?: number } | null = history.state;
+  if (state && (state.muDepth ?? 0) > 0) { history.back(); return true; }
+  history.pushState({ muDepth: 1 }, '', '/home'); dispatchEvent(new PopStateEvent('popstate')); return true;
+}
+```
+
+A helper that pushes its own entries should stamp them the same way (`{ muDepth: current + 1 }`).
+
 ## Active link - automatic
 
 The router marks the current nav link for you: any internal `<a>` whose `href` equals the current path gets
