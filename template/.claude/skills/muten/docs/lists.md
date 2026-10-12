@@ -41,6 +41,13 @@ each players.sortDesc by score as p, i {           # i = rank (0 = highest score
 Bump a score and the row moves *and* the ranks reindex - no JS, no stored rank field. The index var must be
 named differently from the item var. Omit it (`as item`) and no index machinery is emitted (zero overhead).
 
+**`i` in the `where`** is the row's place in the list **before** the filter (the only position a filter can ask
+about), so a window of rows is one line - the rows from `from` up to `to`, as a virtual list draws them:
+
+```muten
+each products as p, i where i >= from and i < to { … }   # in the body, i counts the rows drawn (0, 1, 2…)
+```
+
 ### Semantic lists - `List`
 
 `each` on its own renders items into whatever holds it (a `<div>` when that's a `Stack`). For a **real list**

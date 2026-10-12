@@ -128,6 +128,11 @@ design**, not for capability - charts, sliders and date pickers are already nati
 older Custom `Slider`/`Calendar`/`Chart` parts for parity, but prefer the native `Range`/`Date`/`Chart`.)
 Authentic shadcn styling, your `.muten` stays readable. See its README for the component list.
 
+**Reuse before you build.** Before writing any UI piece, look for it in the plugin: `node_modules/@muten/shadcn/AGENTS.md`
+("Read this first") has the loop and an "if you need X, use Y" table, and every `registry/<name>.muten` opens with its
+props and an example. Compose the parts; your CSS only places and sizes them (e.g. `--dw` for `DeviceFrame`, the one
+phone of the library). `node node_modules/@muten/shadcn/scripts/reuse-audit.mjs src` lists what an app redraws by hand.
+
 ## Building your own plugin
 
 Publish an npm package with a `registry.json` + the part `.muten` files (+ optional `globals.css` and host `.js`

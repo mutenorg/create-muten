@@ -66,7 +66,7 @@ Reach for `Table`/`Row`/`Cell` when **you** control the row/cell markup (mixed c
 
 | Primitive | Element | Notes |
 |---|---|---|
-| `Image` | `<img>` | **`alt` required**: `Image "{p.image}" alt("{p.title}")` - `alt("")` for decorative |
+| `Image` | `<img>` | **`alt` required**: `Image "{p.image}" alt("{p.title}")` - `alt("")` for decorative. Loads as it nears the screen (lazy, async decode); add `eager` for what is seen first: `Image "{shop.cover}" alt("") eager` |
 | `Icon` | inline `<svg>` | Iconify `set:name`, resolved at build (tree-shaken), `aria-hidden`: `Icon "lucide:settings"` |
 | `Video` | `<video>` | bare-keyword flags: `Video "clip.mp4" controls autoplay loop muted playsinline` |
 

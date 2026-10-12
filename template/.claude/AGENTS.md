@@ -13,6 +13,7 @@ escapes - `use` for JS functions, `Custom` for a vanilla-JS widget - never as th
 > - **An icon** → `Icon "lucide:name"` (Iconify, inlined, tree-shaken). **Never** inline `<svg>` or an icon package.
 > - **A dropdown / modal / tabs / toast / accordion** → a page `state` + `when cond { … }` + `class(open when …)`. **Never** `createElement`/`addEventListener`.
 > - **A button / list / card / badge** → native primitives (`Button -> action`, `each`, …) or the **`@muten/shadcn`** plugin (your component set). **Never** hand-roll them in JS.
+> - **Any UI piece at all** (a phone mockup, a field with a picker, a chat preview, a skeleton, a menu…) → first look in `@muten/shadcn`: read **`node_modules/@muten/shadcn/AGENTS.md` → "Read this first: reuse before you build"**, and the header of each candidate in `node_modules/@muten/shadcn/registry/`. Compose its parts; your CSS only places and sizes them. **Never** draw a second version of something the library has. Check with `node node_modules/@muten/shadcn/scripts/reuse-audit.mjs src`.
 > Rule of thumb: if a `Custom`'s `.js` contains a button, a socket, a list render, an icon, or a modal, it is **too big** — that's declarative Muten. Escaping when you didn't need to ships more JS, loses the oracle, and makes the app the *opposite* of what Muten is for.
 
 > The **`muten` skill** holds everything - read it before writing `.muten`:

@@ -93,6 +93,12 @@ localStorage - never hand-roll `localStorage.getItem/setItem` in a [`use`](escap
 state { theme = "dark" : text persist }     # a setting that survives reload
 ```
 
+**Only what is harmless to read.** Every script on the page can read `localStorage`, so `persist` is for settings,
+a cart, favorites - never a session token or a person's details (email, phone, address): `muten check` warns on
+those (`persist-sensitive`). A session belongs in an httpOnly cookie ([`api { credentials }`](data.md)), personal
+data on the server. And what comes back from storage is checked against the declared type: a value of another type
+is ignored for the initial.
+
 `persist` works **page-local** *and* inside a [`.store`](stores.md) for **app-global** persisted state -
 favorites, a cart, settings, the current theme:
 

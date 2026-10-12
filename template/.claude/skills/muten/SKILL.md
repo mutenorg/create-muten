@@ -194,6 +194,7 @@ sources {
 }
 ```
 - `at` reads the array out of `json[at]` - dotted for nested envelopes (`"data.posts"`). Else the response IS the array. `body` is JSON-encoded (sets `content-type`).
+- `wait: true` - the query does NOT load on its own; it stays `loading` until its first `refetch(…)`. Use it for a list whose address needs params (a slug, a key): without it the page first sends a bare request that can only fail, then the real one.
 - At build (`muten build`), **GET** sources are fetched and baked into the HTML (SSG); non-GET run only client-side (no build side-effects).
 - **Headers ship to the client** like any browser fetch - use public keys or a per-user token, never a server secret.
 

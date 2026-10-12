@@ -51,6 +51,9 @@ sources {
 A **relative** source URL is joined to `base`; an **absolute** one (`https://…`) ignores it. Source headers
 override the api defaults.
 
+> **Everything in `api {}` ships to every visitor's browser.** A header written here is a PUBLIC key (a publishable
+> key, a read-only token meant for browsers), never a secret: anyone can read it in the bundle.
+
 ### Multiple backends
 
 Name the clients and pick one per source:
@@ -67,6 +70,22 @@ sources {
 ```
 
 No `api` field → the client named `default`.
+
+### Signed-in users - a cookie, not a token
+
+A per-user session must not live where scripts can read it (`localStorage`, a `persist` state): one injected script
+anywhere on the page would take it. Let the backend set an **httpOnly cookie** at sign-in and tell muten to send it:
+
+```muten
+api { base: "https://api.shop.com"  credentials: "include" }   # every request carries the session cookie
+```
+
+`credentials` is `"include"` (send cookies, also to an api on a sibling subdomain), `"same-origin"` or `"omit"`. The
+backend's side of the bargain: `Set-Cookie: sid=…; HttpOnly; Secure; SameSite=Lax; Path=/`, CORS with
+`Access-Control-Allow-Credentials: true` for your app's exact origin, and a check that a cookie only counts when the
+request's `Origin` is your app (that, plus `SameSite`, is what stops another page from riding the cookie). The sign-in
+answer then carries no token at all: the app learns «signed in», never the key. `muten check` warns when a `persist`
+state is named like a session or personal data (`token`, `email`, `phone`, `address`…).
 
 ## Writing - REST CRUD
 

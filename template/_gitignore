@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# the app graph (routes, stores, fields): for the AI on this machine, never committed or deployed
+.muten/

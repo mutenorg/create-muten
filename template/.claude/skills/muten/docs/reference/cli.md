@@ -4,7 +4,7 @@ The `muten` binary ships with the app (it's a dependency of `@muten/core`). Run 
 npm script.
 
 ```sh
-muten dev    [dir]                       # dev server (native esbuild + surgical HMR; serves /_muten/graph)
+muten dev    [dir] [--host]              # dev server (native esbuild + surgical HMR; serves /_muten/graph to this machine)
 muten bundle [dir]                       # production CSR build (per-route chunks + a ship-size report - each route's gzip size, so bloat is visible)
 muten build  [dir] [--url=https://site.com]   # static SSG → crawlable HTML per route
 muten check  [dir] [--json] [--watch]    # the oracle; --watch re-lints the app on every change
@@ -43,13 +43,19 @@ that node re-renders; state survives). No Vite, no bundler config. This is what 
 
 A compile error (syntax or oracle) shows a code-frame in the terminal AND a browser overlay (file:line:col +
 "did you mean"); an uncaught **runtime** error shows its own overlay. The dev server also serves
-**`/_muten/graph`** - the live app graph (routes / stores / parts) an AI can read without parsing files.
+**`/_muten/graph`** - the live app graph (routes / stores / parts) an AI can read without parsing files (to this
+machine only: `curl localhost:<port>/_muten/graph`).
+
+**Who can reach it.** It listens on this machine only. `--host` (or `dev { host "lan" }` in `muten.config`) opens it
+to the wifi, for a phone or Capacitor's live reload. A tunnel or any other domain name must be listed, or it is
+refused (DNS rebinding): `dev { hosts ["dev.example.com"] }` (a leading dot allows a whole zone). It never serves a
+file outside `public/` nor a secret (`.env`, keys, dotfiles), and "open in editor" needs this run's token.
 
 ## `muten bundle`
 
 The **production CSR build** (esbuild): bundles the SPA (your `use` functions, `Custom` components, shared
-cross-page state) to `./dist/` with per-route code-splitting + source maps, writes **`dist/app.map.json`** (the
-app graph), and prints a **per-route ship report** (each route's JS + gzip, so bloat is visible). This is what
+cross-page state) to `./dist/` with per-route code-splitting, writes the app graph to **`.muten/app.map.json`**
+(never into `dist/`: it names every route and store), source maps only with `--sourcemap`, and prints a **per-route ship report** (each route's JS + gzip, so bloat is visible). This is what
 `npm run build` runs - the path for a **stateful** app. (For a zero-JS static export instead, use `muten build`
 below.)
 
@@ -61,7 +67,7 @@ Compiles the app to **static HTML** per route (SSG) in `./dist/`, plus the SEO m
 dist/<route>/index.html   # pre-rendered, crawlable HTML (zero-JS where possible)
 dist/sitemap.xml          # one <url> per route
 dist/robots.txt           # allow + Sitemap directive
-dist/app.map.json         # the app graph
+(.muten/app.map.json      # the app graph, kept OUT of dist)
 ```
 
 - **`--url=https://site.com`** - your deploy origin, used for **absolute** sitemap / canonical / `og:url`
@@ -94,7 +100,7 @@ Emits **`app.map.json`** - a compact index of routes + their models, state, and 
 reads first to understand the whole app.
 
 ```sh
-muten map                   # writes app.map.json
+muten map                   # writes .muten/app.map.json
 muten map --json            # prints it to stdout
 ```
 

@@ -156,8 +156,7 @@ const DND_CSS = `
 // muten.config (muten syntax) composed from the chosen options. The styling block is the theme ADAPTER for
 // the chosen library: muten emits theme.muten in that format. Selectors drop the trailing ` {` and use single
 // quotes (muten strings can't hold `{`/`"`); muten.config wraps them back into blocks. css-only is zero-config
-// (no file — muten emits :root vars). There is no muten.config for css-only: `muten dev`/`muten bundle` is the
-// runner (embedded esbuild) and needs no config; a muten.config is only written for Tailwind/DaisyUI.
+// (muten emits :root vars). Every app gets a muten.config: at least its `security {}` block (the page's CSP).
 const mutenConfigText = ({ styling, classes, plugins = [] }) => {
   const key = (k) => /^[a-z][a-z0-9]*$/i.test(k) ? k : `"${k}"`;            // quote hyphenated/non-ident keys
   const sel = (open) => open.replace(/\s*\{\s*$/, '').replace(/"/g, "'");   // "@theme {" -> "@theme"; double -> single quotes
@@ -167,6 +166,9 @@ const mutenConfigText = ({ styling, classes, plugins = [] }) => {
     '',
   ];
   if (plugins.length) { L.push('plugins {'); for (const p of plugins) L.push(`  ${p} {}`); L.push('}', ''); }
+  // safe by default: \`muten bundle\`/\`build\` put a Content-Security-Policy on every page (an injected script does not run).
+  // An app that loads a third-party script (payments, maps) writes its own policy here instead of "default".
+  L.push('security {', '  csp "default"', '}', '');
   if (styling) {
     L.push('styling {',
       `  prefix { ${Object.entries(styling.prefix).map(([s, p]) => `${s} "${p}"`).join('  ')} }`,
@@ -543,7 +545,7 @@ async function main() {
     if (existsSync(gitignore)) writeFileSync(gitignore, `${readFileSync(gitignore, 'utf8')}android/\n`);
     appendAgents(ANDROID_NOTE(pm));
   }
-  if (styling || plugins.length) writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes, plugins })); // the build config, in muten (plugins + theme adapter); css-only with no plugins is zero-config
+  writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes, plugins })); // the build config, in muten: security (CSP) always, plugins + theme adapter when chosen
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
   const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}${android ? ' + Android' : ''}`;
