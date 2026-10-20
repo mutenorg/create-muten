@@ -51,7 +51,19 @@ The syntax is small; the real skill is the **boundaries** - pick the right home 
 | **on-mount side effect** (init an SDK, analytics, focus) | a **page `effect {}`** (or store `effect` if global) | a `Custom`; "there's no lifecycle" (there is) |
 | list filter / total / membership | `where` / `sum by` / `contains` | a `use` fn with `.filter`/`.reduce`/`.some` |
 | localStorage persistence | `persist` on the state | `use` + `localStorage` |
-| async data load | a `query` state | a `use` fn (it's synchronous) |
+| async data load | a `query` state | a `use` fn's result in a `get` |
+| the result of an async function / SDK | `hits = query lookup(q)` (re-asks when `q` changes; `live` for `subscribe(cb)`) | a `Custom` or an `effect` that sets state |
+| polling (a queue, a status) | `query x every 15s` (only while the tab is visible) | `setInterval` in a `Custom` |
+| online / screen width / dark / touch | `device.online` · `device.width` · `device.dark` … (read-only, live) | a `use` fn reading `navigator` |
+| texts in several languages | `src/lang/<code>.lang` + `t("key", …)` + `lang.use("en")` (docs/texts.md) | a `.ts` table of strings |
+| a component library's look (shadcn) | `theme shadcn { preset noir  primary "#…" }` in theme.muten | `@import`s in styles.css + a `styling {}` adapter |
+| pick / drop / upload files | `File bind(photo) accept("image/*")` + `post … body { photo: resize(photo, 1600) }` (docs/browser.md) | a `.ts` with FileReader + canvas |
+| read / write the address (`?s=`) | `url.s` · `url.set({ s: "x" })` (Back undoes it) | `history.pushState` in a `.ts` |
+| a countdown, hide a bar on scroll, jump to a section | `device.now` · `device.scrollDir` · `scrollTo("#x")` | `setInterval` / scroll listeners |
+| Esc closes, wait for typing to stop | `on(escape: close)` · `on(typed: search)` | a keydown listener / a debounce `Custom` |
+| a money field | `Number bind(price) currency("COP")` | a masking `Custom` |
+| an SDK with no npm package (Google Identity, Meta) | `use google from script "https://…"` + `element("#id")` | a `<script>` tag + a `.ts` bridge |
+| an image's loading / broken state | CSS on `Image`'s `data-state` (none while loading, then `loaded`/`error`) | a `Custom` image component |
 | genuine foreign logic (date math, a lib, an SDK) | a **`use`** function | reimplementing a built-in |
 | a chart / slider / date picker / drag&drop | a **native primitive** (`Chart`/`Range`/`Date`/`draggable`) | a `Custom` or a plugin (not needed - these are native) |
 | a widget muten truly can't express (map, rich-text editor, canvas) | a **`Custom`** component | a React/Vue component (there are none) |
@@ -75,9 +87,12 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
 - **JS logic via `use … from "./lib.ts"` - YES.** Import named functions and call them in any expression
   (`use fmt from "./lib.ts"` → `Text "{fmt(x)}"`). The `.ts` is a facade over any npm. See §14.
 - **Built-in formatting - NO `use`, NO hand-rolled JS.** Dates / initials / currency / case have **built-in
-  functions, always available**: `upper` · `lower` · `initial` (first letter, for avatars) · `truncate(s, n)` ·
-  `money(n)` · `ago` (relative time) · `date` · `time` · `now()` · `daysUntil` / `dayKey` / `addDays` (date math) ·
-  `isToday` / `isPast` / `isFuture`. Call them directly in any expression - **do NOT write
+  functions, always available**: `upper` · `lower` · `initial` / `initials` (avatars) · `truncate(s, n)` ·
+  `money(n[, "COP"[, "es-CO"]])` · `fixed(n, decimals)` · `percent(f)` · `pad(n, width)` · `num(text)` ·
+  `ago` (relative time, in the reader's language) · `date` · `time` · `calendar` · `now()` · `daysUntil` / `dayKey` / `addDays` (date math) ·
+  `isToday` / `isPast` / `isFuture` · **text:** `trim` · `digits` · `slugify` · `replace(s, find, with)` · `startsWith` / `endsWith` ·
+  `before` / `after` · `split(s[, sep])` (→ list<text>) · `joined(list[, sep])` · **page:** `urlParam("ref")` · `copy(text)` (clipboard, in an action) · `share(text[, url])` (the phone's share sheet; clipboard where there is none) · `visit(url)` (go there like a Link: an app path, or another site such as the Checkout page your API returned).
+  A state may share a built-in's name (`date`, `max`…): the built-in still works. Call them directly in any expression - **do NOT write
   your own `formatTime`/`getInitials`/`Date` logic** (that ships an un-checked, often buggy escape):
   `Text "{ago(msg.time)}"`, `Text "{initial(user.name)}"`, `Text "{money(order.total)}"`,
   `Text "{date(msg.time)} at {time(msg.time)}"`. Timestamps are `text` (ISO strings); `ago`/`date`/`time` parse
@@ -85,13 +100,23 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
   **Math (for SVG/Chart geometry):** `map(v, inLo, inHi, outLo, outHi)` (linear scale) · `sin` · `cos` · `sqrt` ·
   `abs` · `round` · `floor` · `ceil` · `pow` · `min(a,b)` · `max(a,b)` · `pi()`. e.g. `Circle cy(map(p.val, 0, max, 190, 10))`,
   a radial dot `cx(cx0 + r * sin(a.ang * pi() / 180))`. (`min`/`max` are 2-arg; the list min/max is `list.min by field`.)
+- **Your own small functions IN MUTEN - `get` with parameters**: `get initials(name) = upper(initial(name))`, called
+  `initials(user.name)`. In a `.store`, any page calls it as `format.price(x)`. This is where the helpers that used to
+  need a `.ts` go (labels, keys, formats): checked by the oracle, wrong arity is an error.
+- **Components from npm - `use element | widget | react`** - a Web Component, a `mount(el, props, on)` widget, or a
+  React component, used like a part with no `.js` in the project:
+  `use react Counter from "some-react-lib"` then `Counter(start: n) on(change: setN)`. See docs/escapes.md.
+- **Environments** - `muten.config` `env { local { api "http://localhost:4310" } prod { api "https://…" } }`, read as
+  `env.api` (and `api { base: "{env.api}" }`). `dev` runs on `local`, `bundle`/`build` on `prod`, `--env=lan` picks one.
+  Never rewrite the source to point an app elsewhere.
 - **Host UI via the `Custom` primitive** - write vanilla JS in `src/components/<Name>.js` for a widget muten
   can't express natively (a **map**, a **rich-text editor**, a **canvas** scene) and mount it with `Custom`.
   (Charts, sliders and date pickers are native - `Chart`/`Range`/`Date` - don't `Custom` those.) See §Custom.
 
 ## 2. What you CANNOT do
-- **No React / Vue / Svelte - at all.** Muten ships ZERO framework runtime. Pages are `.muten` → vanilla DOM;
-  you don't compose the app from a React library (MUI/Chakra/the npm `shadcn/ui`). You CAN compose from
+- **No React / Vue / Svelte as the app.** Muten ships ZERO framework runtime. Pages are `.muten` → vanilla DOM.
+  A single React component from npm can be an ISLAND (`use react Name from "pkg"`, React then ships for that page only),
+  but the app is never composed from a React library (MUI/Chakra/the npm `shadcn/ui`). You CAN compose from
   **`@muten/shadcn`** — the shadcn component set ported to native muten PARTS (`Card`, `Combobox`, `Dialog`,
   `Avatar`, `Badge`, `Tabs`, …); enable it with `plugins { shadcn {} }` in `muten.config` and call a part like any
   primitive (`Card { CardHeader { CardTitle(label: "…") } CardContent { … } }`). For a widget Muten can't express,
@@ -105,8 +130,8 @@ This is a muten project (with muten's native runner), so the whole npm ecosystem
 ## 3. Limitations & known gaps (current - these are real, plan around them)
 - **The runnable builds are `muten dev` (local dev, surgical HMR) and `muten bundle` (production CSR); `muten build` is the zero-JS SSG.** `muten build` is the zero-JS SSG export: it now
   **inlines the theme + `src/styles.css`** and **pre-renders (SSR) your stores/`query` data**, so pages ship
-  fully styled with real content. Its only gaps are inherent to a no-bundler static export: `use` functions
-  aren't bundled (it **warns**), and store state doesn't persist across full-page navigations. For a styled
+  fully styled with real content. `use` functions, npm components and route `guard`s work there too; its one gap is
+  inherent to a static export: store state doesn't persist across full-page navigations (only `persist` state does). For a styled
   **stateful** app use `muten bundle`; reach for `muten build` for crawlable static/content pages.
 - **Routing uses quoted string paths** (`"/path"`, History API). Params: `"/product/:id"` + `param id` (see §10).
 - **Forms** (`Form` auto-renders from an entity) render EVERY field - **no conditional fields** (gate the whole
@@ -143,7 +168,8 @@ src/parts/<name>.muten           reusable component (inlined at build time). `Pa
                                  appends to the part root's classes — `class` is the only modifier allowed there.
 src/components/<Name>.js          host-JS escape hatch, mounted via Custom
 src/<domain>.store               app-global state slice (domain = file name)
-theme.muten                      token scale (space/font/weight/leading/breakpoints)
+theme.muten                      token scale (space/font/…), or `theme shadcn { … }`: connects a CSS library (§7)
+src/lang/<code>.lang             the app's texts, one file per language (`key "text"`), read by t("key")
 src/styles.css                   reset + look (or styles.scss)
 index.html                       loads /src/app.muten via @muten/core; don't hand-edit the boot
 muten.config                     build config in muten (theme adapter) - present ONLY with Tailwind/DaisyUI
@@ -435,9 +461,30 @@ Everything (layout AND look) is a `class("...")`. Two equivalent backings - pick
   ```
   The scaffold ships base classes like `.mu-stack` (the `Stack` primitive's flex-column).
 
+### Connecting a library - `theme <library> { … }`
+```
+theme shadcn {
+  preset noir                  # its themes/noir.css
+  with nova, kit               # its extra stylesheets
+  mode light                   # the class + data-theme it needs on <html>
+  primary "#6B46F2"            # any token it declares, by its own name (--primary)
+  dark { primary "#8B6CF6" }   # on its dark selector
+}
+```
+That one file brings the library's CSS in (after Tailwind), sets its tokens and enables its parts: no `@import`
+in styles.css, no `styling {}` in muten.config. `check` names a missing library/preset/token with the closest one.
+
 ## 8. State, actions & reactivity
-- `state` cells are signals; reading them in interpolation / `when` / `each` auto-updates that spot.
-- `query` state is async → render with `when x.loading { … }`, then use `x.data`.
+- `state` cells are signals; reading them in interpolation / `when` / `each` auto-updates that spot. A `get` is
+  lazy (computed when read, once per change, never with a stale input) and an effect re-runs only when what it
+  reads really changed.
+- `query` state is async → render with `when x.loading { … }`, then use `x.data`. A query is fetched the first time
+  something reads it (a list behind a closed tab costs nothing), the same request from two places goes out once, and
+  coming back to a page shows its last list at once while it revalidates.
+- **Two branches: `when … else`** - `when x.loading { Skeleton } else when x.error { Text "…" } else { each x as … }`.
+- **When a request fails: `failed { }`** after the action's body:
+  `action save mutates problem { post "/orders" body draft } failed { problem.set("No se pudo guardar") }`.
+  (A `post` throws on any non-2xx, so an `if`/`else` after it never sees the failure; `save.error` holds the reason.)
 - Mutate **only** through `action`s, and only the state in `mutates` (the linter enforces it):
   - `list.push(x)` (append; auto-fills uuid fields) · `s.set(v)` · `s.reset()` · `s.toggle()` (flip a bool) · `list.remove where id == itemId`
   - **Inline object literal** (build a record without leaving Muten): `posts.push({ title: draft.title, body: draft.body })`, `draft.set({ name: c.name })`. Keys must be real fields of the entity.
@@ -616,6 +663,9 @@ use fmt, slug from "~/lib/format.ts"        # named exports ONLY (the .ts is a f
 Text "{fmt(order.total)}"                    # called like any expression
 Link "{slug(post.title)}" -> "/blog/{post.id}"
 ```
+**Say what a function returns** when it is a list you will iterate: `use rowsOf: list<Row> from "~/lib/rows.ts"` -
+then `get rows = rowsOf(q)` + `each rows as r { Text "{r.name}" }` is checked field by field (a typo is an error).
+Without the type the result is unchecked.
 **Paths: prefer `~/` (absolute, from `src/`).** `~/lib/format.ts` resolves the SAME from EVERY file - no
 counting `../`. Write `use x from "~/lib/format.ts"` whether you're in `src/pages/a/b.muten` or a part; it's
 always `src/lib/format.ts`. (`./`/`../` relative still works, but `~/` is the canonical, location-independent form.)
@@ -635,13 +685,28 @@ action send(text: text) mutates messages {
 > • **filter / find / aggregate a list** → **`where` / `count where` / `sum by`** (§8), NOT `.filter`/`.find`/`.reduce`.
 > A `use` fn is for genuine foreign logic (date math, a formatting lib, a 3rd-party SDK) - never to reimplement a built-in.
 The call is checked like any other (undeclared → `unknown-function`). This replaces the old "every side effect
-needs a `Custom` component" pattern. Keep the border **synchronous** (no async/`await`); for async I/O use a
-`query` / `create` / `update` / `delete` (those are async with `.pending`/`.error`).
+needs a `Custom` component" pattern.
+**An npm package directly** - `use slugify from "slugify"`, no facade file. Muten reads its `.d.ts`: what each
+function returns (an `each` over it is checked field by field) and how many values it takes (`fn-arity`).
+**Async is fine**: an action awaits a function that returns a Promise (and gets `.pending`/`.error`); to SHOW the
+result, make it a query - `hits = query lookup(q)` asks again when `q` changes and drops a late, stale answer;
+`feed = query watch(id) live` hands it a callback and calls what it returns to stop.
+**A package's own API, as its docs show it** - on what a `use` brought in (or a `get`/`query` made from it):
+`get db = createClient(url, key)` · `orders = query db.from("orders").select("*") : list<Order>` · `posthog.capture("buy")`
+in an action · `z.string().email().safeParse(email).success` · `dayjs(x).format("D MMM")`. A single name falls back to the
+default export (`use confetti from "canvas-confetti"`). A query reads `{ data, error }` (Supabase) and Firestore snapshots
+as rows. Realtime: `orders = query db.from("orders").select("*") live db.channel("orders").on("postgres_changes", {…}, change).subscribe() : list<Order>` / `messages = [] : list<Msg> live socket.on("msg", change)`: `change` is where the callback goes; each change lands in the list by id.
+**React libraries compose like JSX**: `use react LineChart, Line, XAxis from "recharts"` then `LineChart(data: sales) { XAxis(dataKey: "day") Line(dataKey: "total") }`; namespaces `Dialog.Root { Dialog.Trigger { Text "Abrir" } … }`; object props `animate: { opacity: 1 }`; `each` inside is a list of React children; muten nodes inside still work (docs/escapes.md).
+**Providers live in theme.muten**: `provider ThemeProvider(theme: createTheme({ palette: { primary: { main: theme.colors.primary } } })) from "@mui/material"` wraps every MUI component on every page. shadcn tokens are written by their own names, hyphens included: `theme shadcn { primary-foreground "#fff"  chart-1 "#…"  dark { card "#…" } }`.
+**SDKs that draw into an element**: `effect { new Chart("sales", {…}) }` + `Canvas id("sales")`; `L.map("map").setView([4.6, -74.08], 12)`; lists `[a, b]`; `{{z}}` is a literal `{z}`.
+**A library's theme from theme.muten**: `createTheme({ palette: { primary: { main: theme.colors.primary } } })` (MUI), `createSystem(defaultConfig, defineConfig({ theme: { tokens: { colors: { brand: { value: theme.colors.primary } } } } }))` (Chakra): `theme.<section>.<key>` is theme.muten's value. React Native libraries (gluestack) work once `react-native-web` is installed.
+muten's own values still have no methods. **Server SDKs (`stripe`, `openai`, `twilio`, DB drivers) are a
+`check` error**: the key would ship to every visitor; the page `post`s to your API, which calls them (docs/escapes.md).
 
 Import zod/date-fns/nanoid/whatever *inside* `format.ts` and expose tidy named functions; Muten sees only the
 names, so the oracle still checks your calls. For a visual widget Muten can't express natively (a **map**, a
 **rich-text editor**, a **canvas** scene - but NOT a chart/slider/date, those are native), drop to a vanilla-JS
-`Custom` (§13) - there is no framework-component escape; Muten owns the whole UI.
+`Custom` (§13). A component that already exists on npm comes in with `use element | widget | react` (docs/escapes.md).
 
 ## 15. Gotchas
 - It is NOT JSX - PascalCase primitives + `{ }` children; no JSX/hooks/`className` anywhere.
@@ -652,7 +717,8 @@ names, so the oracle still checks your calls. For a visual widget Muten can't ex
 - **The runnable builds are `muten dev` (local dev, surgical HMR) and `muten bundle` (production CSR); `muten build` is the zero-JS SSG** (styled + SSR'd, but no `use` bundling / no cross-page state - §3).
 - **Paths are quoted strings** (`-> "/x"`, `routes { "/x" -> p }`); a hyphenated reactive class must be quoted (`class("is-open" when x)`).
 - **`Custom` inputs need `@` to pass state** (`inputs(data: @items)`); a snapshot at mount, reactive only if `mount` returns an updater fn (§13).
-- Want a library? CSS → `class()`. JS function → `use` (§14, also callable in actions). A widget → `Custom` (§13). There is no framework-component escape.
+- Want a library? CSS → `class()`. Your own logic → `get name(…)` (in a page or a `.store`). JS function → `use` (§14, also callable in actions). A component from npm → `use element|widget|react` (docs/escapes.md). A canvas/map you write yourself → `Custom` (§13).
+- **Icon from data**: fine when the page spells out every name it can be: `Icon "{done ? "lucide:check" : "lucide:circle"}"`, `Icon "lucide:{x ? "a" : "b"}"`, or `each tabs as t { Icon "{t.icon}" }` over a list written in the page. A name from the server is an error (use `Image "{item.iconUrl}"`).
 
 ## 16. Minimal full app
 ```
@@ -671,3 +737,22 @@ Page class("flex flex-col gap-4 p-6") {
 }
 ```
 Validate anytime: `npm run lint`.
+
+## 17. Tests in muten - `muten test`
+A page's tests sit next to it (`src/pages/cart/cart.test`) and start on its route. Steps are what a person does,
+found the way a person finds them (by text, label, placeholder):
+```
+test "adding a product shows the total" {
+  see "Total: $0"
+  press "Add"                        # a button / link / control by its text or aria-label
+  fill "Coupon" with "HALF"          # a field by its label, placeholder or name (selects take the option text)
+  see "Total: $5"
+  see no "Invalid coupon"
+  open "/checkout"                   # another route (required first step in a file not next to a page)
+  wait 300                           # rarely needed: every step retries for 2.5 s
+}
+```
+Runs in headless Chrome on the app's `mock` data: no `sources`, and every request leaving the test server is refused
+(a test can never touch a real API). Each test gets a fresh browser context; an error the page throws fails it.
+`muten check` checks `.test` files too (unknown step, `open` to a route that does not exist, a test that `see`s nothing).
+`muten test --only=total` runs the tests whose name contains "total".

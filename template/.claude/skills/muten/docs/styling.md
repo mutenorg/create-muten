@@ -74,6 +74,18 @@ Stack class("bar") style(w: "{pct}%")        # sets CSS variable --w to "40%", r
 - Your CSS consumes it with `var(--key)`. The *look* stays in CSS; only the *changing value* lives in muten.
 - Use `class()` for everything static; reach for `style()` **only** when a value changes at runtime.
 
+## Hover: never move it, never fade it on a list
+
+Two hover styles compile clean, look right in a screenshot, and make the UI blink under a real pointer:
+
+- **Moving the element** (`hover:-translate-y-1`, `transform: translateY(-4px)`): a pointer resting on its bottom edge
+  makes it rise off the pointer, drop back under it and rise again, forever. Scaling up is safe; moving is not.
+- **Fading the colour of a row, a menu item, a nav link or a button** (`transition-colors`, `transition: background
+  150ms`): sweeping a list leaves trails and every row dims in the gap between two of them; the menu reads as blinking.
+  Make that hover instant, as shadcn does.
+
+The `muten-design` skill has the fix for a card that must lift.
+
 ## Two backings - pick one per app
 
 **Tailwind** (the default scaffold) - write utilities directly:
@@ -127,6 +139,59 @@ CSS-var prefix) and `blocks { name { selector "…" sections [ … ] } }` (each 
 sections into one CSS block under that `selector`). Selectors drop the trailing `{` and use single quotes
 (muten strings can't hold `{`/`"`) - e.g. `selector "@theme"` or `selector "[data-theme='light']"`. DaisyUI
 also gets a `classes { … }` block that maps the auto-`Form` slots to its component classes.
+
+### Connecting a component library - `theme <library> { … }`
+
+`theme.muten` can name the library that dresses the app. That one file then brings its stylesheets in, picks its
+preset and extras, and overrides its tokens - nothing to import in `styles.css`, no adapter in `muten.config`:
+
+```muten
+theme shadcn {
+  preset noir                  # the library's themes/noir.css
+  with nova, kit               # its extra stylesheets (nova.css, kit.css)
+  mode light                   # or dark: the class and data-theme it needs on <html>
+  primary "#6B46F2"            # any token the library declares, by its own name (--primary)
+  radius "0.75rem"
+  dark { primary "#8B6CF6" }   # the same tokens for dark mode, on the library's dark selector
+  colors { brand "#ff0" }      # your own scales still work (--color-brand)
+}
+```
+
+The library is found by convention in `node_modules` (`theme shadcn` → `@muten/shadcn`, then `shadcn`): its
+`globals.css`, `themes/*.css` presets, the other root stylesheets as extras, its custom properties as tokens.
+Its parts are enabled too. `check` says when the library isn't installed, a preset/extra/token doesn't exist (with
+the closest one), a value isn't a value, or Tailwind is missing.
+
+### A React library's theme, from theme.muten
+
+MUI, Chakra and gluestack theme themselves with a JavaScript object, and compute shades from real colors (a `var()`
+is no use to them). Their provider reads theme.muten's values, so the whole app has one look:
+
+```muten
+use react ThemeProvider from "@mui/material"
+use createTheme from "@mui/material"
+get look = createTheme({ palette: { primary: { main: theme.colors.primary } }, shape: { borderRadius: theme.radius.md } })
+ThemeProvider(theme: look) { … }
+
+use createSystem, defaultConfig, defineConfig from "@chakra-ui/react"
+get system = createSystem(defaultConfig, defineConfig({ theme: { tokens: { colors: { brand: { value: theme.colors.primary } } } } }))
+ChakraProvider(value: system) { … }
+```
+
+Better still, declare the provider **once in theme.muten**; every component of that library, on every page, is
+wrapped in it, and the pages only use the components:
+
+```muten
+# theme.muten
+use createTheme from "@mui/material"
+theme { colors { primary "#6B46F2" }  radius { md "12px" } }
+provider ThemeProvider(theme: createTheme({ palette: { primary: { main: theme.colors.primary } } })) from "@mui/material"
+provider ChakraProvider(value: createSystem(defaultConfig, defineConfig({ … }))) from "@chakra-ui/react"
+```
+
+`theme.colors.primary` is the value theme.muten has, fixed at build (with a library connected, its tokens by name:
+`theme.primary`); a name it lacks is a `check` error with the closest one. Change the color in theme.muten and every
+library follows. shadcn needs none of this: `theme shadcn { primary "…" }` sets its CSS variables directly.
 
 ## Why one path
 

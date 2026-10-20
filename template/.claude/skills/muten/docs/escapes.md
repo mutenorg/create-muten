@@ -7,14 +7,113 @@ so reaching out never costs you the oracle.
 Reach for the **lowest rung that works**:
 
 1. **`class("…")`** - styling and CSS libraries (not an escape, just the styling path). See [Styling](styling.md).
-2. **`Custom`** - a vanilla-JS **widget** Muten genuinely can't express: a **map** (pan/zoom/tiles), a **rich-text
-   editor** (contenteditable), a **canvas/WebGL** scene, a per-frame animation. **NOT** charts, sliders, or date
-   pickers - those are native primitives now (`Chart`, `Range`, `Date`, plus the `Svg` vector layer and
-   `draggable`/`droptarget`). Reach for `Custom` only after checking there's no native primitive for it.
-3. **`use`** - a vanilla-JS **logic function** (formatting, date math, a 3rd-party SDK) called in an expression.
+2. **`get name(…)`** - your own small logic, written in muten (labels, keys, formats). Not an escape at all.
+3. **`use element | widget | react`** - a component **from npm**, used like a part, with no `.js` in the project.
+4. **`use`** - a **logic function** from npm or a file (date math, a 3rd-party SDK) called in an expression.
+5. **`Custom`** - a vanilla-JS widget you write yourself: a **map**, a **rich-text editor**, a **canvas/WebGL** scene.
+   **NOT** charts, sliders, or date pickers - those are native (`Chart`, `Range`, `Date`, `Svg`, `draggable`).
 
-There is **no React/Vue/Svelte component escape** - Muten owns the whole UI; foreign code enters only as a
-vanilla-JS widget (`Custom`) or a logic function (`use`).
+## Your own logic: `get` with parameters
+
+```
+get initials(name) = upper(initial(name))
+get label(n, unit) = n + " " + (n == 1 ? unit : unit + "s")
+Text "{initials(user.name)} · {label(cart.count, "item")}"
+```
+A `get` that takes parameters is a function written in muten's expression grammar: checked like any expression,
+and calling it with the wrong number of values is an error. Put the ones several pages share in a `.store`
+(`src/format.store`: `get price(cents) = money(cents / 100, "COP")`) and call them `format.price(x)` from any page.
+
+## Components from npm: `use element | widget | react`
+
+```
+use element Rating "star-rating" from "star-rating-pkg"    # a Web Component: its tag, then the package that defines it
+use widget Map from "some-map"                              # a module exporting mount(el, props, on) -> update
+use react Calendar from "react-day-picker"                  # a React component, mounted as an island
+
+Rating(value: stars, max: 5) on(rate-change: setStars)    # event names may have dashes
+Map(pins: shops) on(pick: select)
+Calendar(selected: day) on(select: pickDay)
+```
+- Props are expressions (reactive: the component gets the new value when they change); `on(event: action)` wires
+  its events (a Web Component's CustomEvent `detail`, or the value a React `onX` callback is called with).
+- Nothing to write in JS: the package comes from `node_modules`, bundled into the pages that use it.
+- `use react` ships React (about 45 KB gz) **only on the pages that use it**. Prefer a Web Component or a native
+  primitive when one exists; reach for React when the library you need only exists there.
+- A `Custom` whose file has its own `import`s is bundled as a module too (`export function mount`).
+
+### SDKs that draw into an element (maps, charts, card fields)
+
+They are made with `new` or a factory, get an element by its id, and take lists and objects - all written as their
+docs show:
+
+```muten
+use L from "leaflet"
+use Chart from "chart.js/auto"
+use loadStripe from "@stripe/stripe-js"
+
+state { stripe = query loadStripe("pk_live_…") }
+get elements = stripe ? stripe.elements({ mode: "payment", amount: 1099, currency: "usd" }) : null
+
+effect {
+  L.map("map").setView([4.6, -74.08], 12).addLayer(L.tileLayer("https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png"))
+  new Chart("sales", { type: "bar", data: { labels: ["lun", "mar"], datasets: [{ data: [10, 30], backgroundColor: theme.colors.primary }] } })
+  if elements { elements.create("payment").mount("#pay") }
+}
+Stack id("map") class("h-72")
+Canvas id("sales") class("h-64")
+Stack id("pay")
+```
+
+- `effect {}` runs once the page is on screen, so the ids exist.
+- `[a, b]` is a list, `{ k: v }` an object; `new X(…)` makes a class a package exports.
+- `{{z}}` is a literal `{z}` in a text (URL templates); a single `{…}` is muten's interpolation.
+- With TypeScript installed (`npm i -D typescript`), `check` asks it about every call into a package: a method or a
+  property the package lacks, or a wrong number of values, is an error with the closest name (`package-type`).
+
+### React libraries, composed as their docs compose them
+
+```muten
+use react LineChart, Line, XAxis, YAxis from "recharts"     # several parts of one library
+use react Dialog from "@radix-ui/react-dialog"               # a namespace: Dialog.Root, Dialog.Trigger…
+use react Command from "cmdk"
+use react motion from "motion/react"
+use react Toaster from "sonner"
+use toast from "sonner"                                      # its function, called from an action
+
+LineChart(width: 400, height: 200, data: sales) { XAxis(dataKey: "day")  YAxis()  Line(dataKey: "total") }
+
+Dialog.Root {
+  Dialog.Trigger { Text "Abrir" }
+  Dialog.Portal { Dialog.Content {
+    Dialog.Title { Text "Tu plan" }
+    Text "Van {n}"                                           # a plain Text is the component's text, live
+    Button "Sumar" -> more                                   # a muten node works inside, as always
+  } }
+}
+
+Command { Command.Input(placeholder: "Buscar…")  Command.List {
+  each items as it { Command.Item(value: it.name) { Text "{it.name}" } }   # a list of React children, keyed by id
+} }
+
+motion.div(initial: { opacity: 0 }, animate: { opacity: shown ? 1 : 0 }) { Text "Hola" }   # object props, live
+Toaster(position: "top-center")
+```
+
+- The outermost component is an island: rendered again when anything it reads changes, unmounted with the page.
+- Inside: the library's components are React elements; a plain `Text` is text; `each` / `when` are a map and a
+  condition; any other muten node is built by muten and mounted where it sits, still reactive.
+- In a row of an `each` inside a React component, use the library's components and a plain `Text`: a muten node there
+  is built once (`check` says `react-list-node`).
+- `class("…")` is its `className`, `on(click: x)` its `onClick`. A library may name a part like a primitive
+  (`use react Button from "@mui/material"`): in that file `Button` is the library's.
+- Props take any expression: `bg: on ? "brand" : "gray.300"`, `sx: { alignItems: "center" }`; a package's own values
+  are plain names (`createSystem(defaultConfig, …)`).
+- **React Native libraries** (gluestack, Tamagui, NativeBase) run on the web once `react-native-web` is installed: every
+  `react-native` import becomes it and the `.web.*` files win. No config.
+- Tested in Chrome: lucide-react, Sonner, react-day-picker, Recharts, Radix, MUI, Mantine, Chakra, gluestack, cmdk, Motion, Vaul.
+
+---
 
 ---
 
@@ -82,6 +181,27 @@ sources { feed: { url: "ws://localhost:5480/ws/feed" } }
 # each feed as e { Text "{e.text}" }   ← only changed rows touch the DOM
 ```
 
+**Drag and drop inside a `Custom` is native too — never hand-roll pointer drags or HTML5 DnD.** The engine behind
+`draggable`/`droptarget` is public as `@muten/core/dnd`, for a widget that needs *where* something lands (a
+timeline, a canvas, a board with free placement). Load it with a dynamic import (a `Custom` is inlined: no top-level
+`import`):
+
+```js
+function mount(el, inputs, on) {
+  import('@muten/core/dnd').then(({ draggable, droppable, startDrag }) => {
+    // a source: a 1:1 copy hangs from where it was taken (overlay: false → you move the item yourself)
+    draggable(card, { id: 'k1', distance: 5, onEnd: (info) => { /* info.over, info.point, info.delta */ } });
+    // a zone: told while something is over it and where (info.local = the pointer inside the zone)
+    droppable(lane, { accept: (info) => info.id !== '', onOver: (info) => preview(info.local), onDrop: (info) => land(info) });
+    // from your own pointerdown (select first, drag after 4 px): startDrag(e, el, { overlay: false, distance: 4, onMove })
+  });
+}
+```
+
+Every handler gets `{ id, data, point, start, delta, grab, rect, over, local }`. Options: `distance` / `delay` +
+`tolerance` (touch: hold, then drag), `axis: 'x' | 'y'`, `handle`, `zIndex`; Esc cancels (`onCancel`), and the drag
+scrolls its scroll box near the edges on both axes.
+
 ---
 
 ## `use` - a host-JS logic function
@@ -97,9 +217,12 @@ Link "{slug(post.title)}" -> "/blog/{post.id}"
 
 - **Paths: prefer `~/`** (absolute, from `src/`). `~/lib/format.ts` resolves the same from every file - no
   counting `../`. (`./`/`../` relative still works.)
-- The border is **synchronous** - no `async`/`await`. For async I/O use a `query` / `create` / `update` /
-  `delete` (those are async with `.pending`/`.error`).
-- Import zod / date-fns / nanoid / anything *inside* `format.ts` and expose tidy named functions.
+- **An npm package directly**: `use slugify from "slugify"` - no facade file needed. Muten reads the package's
+  types (`.d.ts`): what each function returns (so `each` over its result is checked field by field) and how many
+  values it takes (a wrong count is `fn-arity`).
+- **Async is fine.** A function that returns a Promise, called in an action, is awaited (the action gets
+  `.pending`/`.error`). To *show* its result, make it a query: `hits = query lookup(q)` (see [Data](data.md)).
+- Import zod / date-fns / nanoid / anything *inside* a `.ts` when you want tidy named functions of your own.
 
 A `use` function can also be **called as a statement** inside an `action` or `effect` - a side effect Muten
 can't express (scroll, focus, analytics):
@@ -117,6 +240,62 @@ An undeclared call is an `unknown-function` error - the border is checked like a
 
 ---
 
+## SDKs from npm - written as their docs show them
+
+A package's own API comes in as it is documented: methods, chains, default exports. Only on what a `use` brought in
+(or a `get` / `query` made from it): muten's own values still have no methods.
+
+```muten
+use createClient from "@supabase/supabase-js"
+use posthog from "posthog-js"                  # a default export: the single name falls back to it
+use z from "zod"
+use dayjs from "dayjs"
+
+get db = createClient("https://x.supabase.co", "anon-key")     # created once, used everywhere below
+state {
+  orders = query db.from("orders").select("*").order("total") : list<Order>
+  email  = "" : text
+}
+get valid = z.string().email().safeParse(email).success
+effect { posthog.init("phc_…", { api_host: "https://us.i.posthog.com" }) }
+action add(total: number) { db.from("orders").insert({ total: total }) }   # awaited: add.pending / add.error
+action buy() { posthog.capture("buy", { plan: "pro" }) }
+
+each orders as order { Text "{dayjs(order.at).format("D MMM")}" }
+```
+
+- A query understands what the big SDKs answer with: a list, `{ data, error }` (Supabase and most REST clients; an
+  `error` becomes `.error`) and Firestore snapshots (`getDocs` → rows with `id`, `onSnapshot` → the doc).
+- A query of a function with no type holds what the package gave back as it is (`stripe = query loadStripe(key)`);
+  write the type (`: list<Order>`) when you iterate it, so its fields are checked.
+- **Realtime, as each service documents it** - `live <subscription>` with `change` where its callback goes. The list
+  loads with the query, then each change is applied (Supabase INSERT/UPDATE/DELETE by `id`, a whole list replaces,
+  one row is added or replaced); leaving the page unsubscribes:
+
+```muten
+orders = query db.from("orders").select("*")
+  live db.channel("orders").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, change).subscribe()
+  : list<Order>
+messages = [] : list<Msg> live socket.on("message", change)          # Socket.IO, Pusher, Ably…
+user = query onAuthStateChanged(auth) live                           # a callback-last function: just `live`
+```
+- **A server SDK never goes in a page.** `stripe`, `openai`, `@anthropic-ai/sdk`, `twilio`, `resend`, `firebase-admin`,
+  database drivers, and any package that needs Node's `http`/`fs` with no browser build, are a `check` error
+  (`server-package`): the page ships its import, and the secret key with it, to every visitor. The app calls your API
+  (`post "/checkout" body { plan: plan } into session`), the API calls the SDK. For payments in the app, the browser
+  SDK (`@stripe/stripe-js`, `@mercadopago/sdk-js`) and a redirect to the session your API created:
+
+```muten
+entity Session { url text }
+state { session = {} : Session }
+action checkout() mutates session {
+  post "/checkout" body { plan: "pro" } into session   # your API: stripe.checkout.sessions.create(…) → { url }
+  visit(session.url)                                   # off to Stripe's page; it comes back to success_url
+}
+Button "Pagar" -> checkout
+when checkout.pending { Text "Abriendo el pago…" }
+```
+
 ## Don't escape for what Muten already does
 
 The most common mistake is escaping to JS for something the language has a first-class form for. Before you
@@ -133,7 +312,8 @@ reach for `use` or `Custom`, check it isn't a built-in:
 | `items.some(x => x.id === id)` | **`contains`** on a `list<number>` of ids, or `count where … > 0` | [Lists § membership](lists.md#membership--is-it-in-the-list) |
 | `list.filter(...)` / `.find(...)` | **`where`** (`each … where`, `count where`) | [Lists](lists.md) |
 | `list.reduce(...)` for a total/count | **`sum by` / `count` / `avg`** | [Lists § aggregates](lists.md#aggregates) |
-| a date/number **format** | a `use` fn (this *is* genuine foreign logic) ✓ | above |
+| a date/number **format** | a built-in (`money`, `fixed`, `date`, `ago`…) or a `get name(…)` | [SKILL §1](../SKILL.md) |
+| slugify / digits / split / join / clipboard / a `?ref=` | built-ins: `slugify` `digits` `split` `joined` `copy` `urlParam` | [SKILL §1](../SKILL.md) |
 
 A `use` function is for **genuine foreign logic** - date math, a formatting lib, a third-party SDK. It is
 **not** for reimplementing a built-in. Escaping when you didn't need to ships more JS, loses the oracle's

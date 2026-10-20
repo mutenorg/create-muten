@@ -83,6 +83,22 @@ Page {
 `.loading` (bool), `.error` (the error or null), and `.data` (the rows). See [Data](data.md) for `refetch`,
 CRUD, and `query x live` (WebSocket).
 
+## `device` - the browser as a store
+
+Read-only and live, no setup:
+
+| `device.online` | `device.width` / `device.height` | `device.dark` | `device.reducedMotion` | `device.touch` | `device.visible` | `device.lang` |
+|---|---|---|---|---|---|---|
+| network up | viewport px | prefers dark | prefers less motion | a touch screen | tab visible | browser language |
+
+```muten
+when not device.online { Text "Sin conexión: lo que hagas se guarda al volver" }
+when device.width < 600 { Text "Vista de teléfono" }
+```
+
+An app with a store of its own named `device` keeps it. For the app's chosen language (one that changes), see
+[Texts](texts.md).
+
 ## `persist` - localStorage, declaratively
 
 Append **`persist`** to a state to back it with `localStorage`: it hydrates from storage on load (falling back

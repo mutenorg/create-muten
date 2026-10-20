@@ -9,16 +9,32 @@ Muten has **two build modes**. Pick by what the app is.
 | Ships | the tiny signals runtime + your app | zero JS where possible |
 | Styles (theme + stylesheet) | **bundled** ✓ | **inlined** ✓ |
 | Stores / `query` data | **bundled** ✓ | inlined + **pre-rendered (SSR)** ✓ |
-| `use` functions | **bundled** ✓ | **omitted** (warns - needs a bundler) |
+| `use` functions & npm components | **bundled** ✓ | **bundled into each page** ✓ |
+| Route `guard`s | the router ✓ | each guarded page checks it as it loads (never pre-rendered) ✓ |
+| CSS | rules no page can match left out | the same, per page |
 | SEO | `<head>` updated on navigation | full: pre-rendered HTML + sitemap/robots/canonical/JSON-LD |
 | Best for | apps (dashboards, SaaS, anything stateful/styled) | content/marketing/catalog where crawlability matters |
 
 **Most real apps use `muten bundle`** - it bundles everything (your CSS, `use` functions, stores) into a stateful
 SPA. `muten build` is the zero-JS SSG path for crawlable static content: it **inlines the theme + project
 stylesheet** and **pre-renders (SSR) your stores/`query` data** into the HTML, so each page ships fully styled
-with real content. The one thing it can't inline is a `use` function (external TS - no bundler in the SSG); it
-**warns** and you switch to `muten bundle`. Store state also doesn't persist across full-page navigations (each
-static page loads fresh) - again `muten bundle` for a stateful multi-page app. See [SEO](seo.md) for the metadata.
+with real content. Store state doesn't persist across full-page navigations (each static page loads fresh; only
+`persist` state does) - `muten bundle` for a stateful multi-page app. See [SEO](seo.md) for the metadata.
+
+## Environments - `env {}` in muten.config
+
+```
+env {
+  local { api "http://localhost:4310" }
+  lan   { api "http://192.168.1.20:4310" }
+  prod  { api "https://api.example.com" }
+}
+```
+Read as `env.api` in any page or store, and in the api block: `api { base: "{env.api}" }`. `muten dev` and
+`muten test` run on `local`; `muten bundle`, `muten build` and `muten android` on `prod`; `--env=lan` (or
+`MUTEN_ENV=lan`) picks another. A phone build that must reach this machine is `muten android --env=lan`.
+Never rewrite the source to point the app elsewhere (a forgotten rewrite ships a blank screen). Values ship to the
+browser: no secrets here.
 
 ## The SPA fallback
 

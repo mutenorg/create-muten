@@ -33,6 +33,11 @@ sources {
 - **Headers ship to the client** like any browser fetch - use public keys or per-user tokens, never a server secret.
 - At `muten build`, **GET** sources are fetched and **baked into the HTML** (SSG); non-GET run only client-side.
 
+**How queries load.** A query is requested the first time something reads it - a list behind a closed tab or a
+`when` that is false costs no request. Two pages or stores asking for the same URL at once make one request.
+Coming back to a page shows its last list at once and refreshes it behind (no spinner flash). So: no `wait`
+flags, and no `refetch` just to "make sure it loaded".
+
 ## One backend, declared once - `api {}`
 
 Put the base URL + default headers in `app.muten` so every source inherits them:
@@ -146,9 +151,55 @@ sources { prices: { url: "ws://feed.example.com/prices", at: "data" } }
 each prices.data as p { Text "{p.symbol}  {p.value}" }
 ```
 
-It auto-reconnects with backoff and closes on unmount. The socket is **receive-only** - to *send* (a chat
-message), write through an action (a `create`/`post`, or a `use` fn that POSTs); the server then pushes the
-updated list back.
+It auto-reconnects with backoff and closes on unmount.
+
+**Only what changed.** A message that is an array replaces the list. A message `{ "upsert": row }` (or a list of
+rows) adds or replaces those rows by `id`, and `{ "remove": id }` (or a list of ids) takes them out, so the server
+sends one row, not the whole list, for each change.
+
+**Sending.** `x.send(value)` in an action goes up the same socket (as JSON; queued until it is open). It changes
+nothing locally, so it needs no `mutates`:
+
+```muten
+action say mutates draft { messages.send({ text: draft })  draft.set("") }
+```
+
+## A query of a function - `query fn(args)`
+
+The data doesn't have to come from a URL: a query can ask a `use`d function (an SDK, an npm client, your own
+async code). Its arguments are read live, so when one changes it asks again, and an older answer arriving late
+is dropped:
+
+```muten
+use lookup from "some-search-sdk"         # async lookup(q): Promise<Hit[]>
+state {
+  q    = "" : text
+  hits = query lookup(q)                  # the type comes from the package's .d.ts; write `: list<Hit>` if it has none
+}
+when hits.loading { Text "Buscando…" }
+each hits as h { Text "{h.name}" }
+```
+
+**Subscriptions** - `live` hands the function a callback as its last value and calls the function it returns to
+stop (Firebase `onSnapshot`, Supabase channels, any `subscribe(cb) → unsubscribe`):
+
+```muten
+use watchOrders from "~/lib/orders.ts"   # watchOrders(shop, cb) returns a stop function
+state { orders = query watchOrders(shopId) live : list<Order> }
+```
+
+## Polling - `every`
+
+`every <time>` asks a query again on a timer, only while the tab is visible (a hidden tab costs nothing):
+
+```muten
+state {
+  queue = query queue every 15s : list<Turn>
+  hits  = query lookup(q) every 300ms
+}
+```
+
+`ms`, `s` and `m` are the units. `every` and `live` don't mix: a socket already pushes.
 
 ## Escape hatch - explicit request
 
@@ -161,7 +212,18 @@ action cancel(o)     { delete "shop:/orders/{o.id}/cancel" }   # custom path, in
 action ping          { post "shop:/health" }                   # no body, no `mutates`
 ```
 
-It uses the named client's base + headers and is async with `.pending`/`.error`. Prefer `create`/`update`/
+It uses the named client's base + headers and is async with `.pending`/`.error`. A request **throws** on any
+non-2xx, so nothing after it runs on a failure; say what to do then in `failed { }`:
+
+```muten
+action buy(o: Order) mutates problem {
+  post "shop:/orders" body o
+  problem.set("")
+} failed {
+  problem.set("No pudimos guardar el pedido")
+}
+```
+`buy.error` holds the reason (HTTP status and the server's `error` text). Prefer `create`/`update`/
 `delete` when the API is RESTful (those also update the list); reach for this only when the convention doesn't fit.
 
 ## See also

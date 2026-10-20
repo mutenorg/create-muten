@@ -107,7 +107,6 @@ const WELCOME_CSS = `
 const FORM_CSS = `
 /* — muten auto-Form baseline (override or delete) — */
 .mu-form { display: flex; flex-direction: column; gap: 14px; }
-.mu-form-title { display: none; }
 .mu-field-group { display: flex; flex-direction: column; gap: 4px; }
 .mu-label { font-size: 13px; font-weight: 600; color: var(--color-text, #18181b); }
 .mu-field { width: 100%; padding: 9px 12px; font-size: 14px; border-radius: var(--radius-md, 8px); font-family: inherit;
@@ -227,10 +226,20 @@ theme {
 # Tailwind owns spacing/sizing/radius (p-6, gap-4, rounded-lg, max-w-md). Don't add space/font/radius named
 # sm/md/lg/xl here — they emit --spacing-md etc. and collide with Tailwind's max-w-md / rounded-md.
 `;
-// Base (no framework): empty theme.muten — the bare object. Fill it and muten emits :root CSS vars.
-const EMPTY_THEME = `# Your theme. Empty for now. Add sections (e.g. \`colors { primary "#4f46e5" }\`) and muten
-# emits them as :root CSS custom properties your stylesheet uses via var(--color-primary).
+// Base (no framework): a short theme that shows what each section gives. muten emits :root CSS vars from it.
+const EMPTY_THEME = `# Your theme: muten turns each line into a CSS variable your stylesheet reads with var(…).
+#   colors { primary }   -> --color-primary         radius { md }  -> --radius-md
+#   space  { md }        -> --space-md              shadow { sm }  -> --shadow-sm
+#   dark { } / light { } -> the same --color-* for each scheme; <html data-theme="light"> switches
+#   scheme { mode }      -> the scheme the page starts in
+# A component library (shadcn) is connected here too: theme shadcn { preset noir  primary "#4f46e5" }
 theme {
+  colors { primary "#4f46e5" }
+  dark   { bg "#0b0b0f"  fg "#fafafa"  muted "#a1a1aa" }
+  light  { bg "#ffffff"  fg "#18181b"  muted "#52525b" }
+  radius { sm "6px"  md "10px" }
+  shadow { sm "0 1px 2px rgb(0 0 0 / 0.08)" }
+  scheme { mode "light" }
 }
 `;
 // Styling ADAPTERS (pure data): how muten renders theme.muten for each library. Live in YOUR muten.config

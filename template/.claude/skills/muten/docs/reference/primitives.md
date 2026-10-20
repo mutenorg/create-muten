@@ -66,14 +66,15 @@ Reach for `Table`/`Row`/`Cell` when **you** control the row/cell markup (mixed c
 
 | Primitive | Element | Notes |
 |---|---|---|
-| `Image` | `<img>` | **`alt` required**: `Image "{p.image}" alt("{p.title}")` - `alt("")` for decorative. Loads as it nears the screen (lazy, async decode); add `eager` for what is seen first: `Image "{shop.cover}" alt("") eager` |
+| `Image` | `<img>` | **`alt` required**: `Image "{p.image}" alt("{p.title}")` - `alt("")` for decorative. Loads as it nears the screen (lazy, async decode); add `eager` for what is seen first: `Image "{shop.cover}" alt("") eager`. It says how it went in `data-state`: none while loading (style `[data-mu-images] .mu-image:not([data-state])` as the skeleton), then `loaded` or `error`, so CSS draws the fade and the fallback: `.cover[data-state=error] { … }` - no Custom image component |
 | `Icon` | inline `<svg>` | Iconify `set:name`, resolved at build (tree-shaken), `aria-hidden`: `Icon "lucide:settings"` |
 | `Video` | `<video>` | bare-keyword flags: `Video "clip.mp4" controls autoplay loop muted playsinline` |
 
-> **Data-driven icon?** The `Icon` name is a static literal (it inlines the SVG at build, so it can't read
-> data). Two paths: a **per-value** icon (status / type / category) is a `match` over static Icons -
-> `match item.status { active -> Icon "lucide:check"  paused -> Icon "lucide:pause" }` (each arm still
-> tree-shakes); an icon whose **URL lives in your data** is an `Image` - `Image "{item.iconUrl}" alt("")`.
+> **Data-driven icon?** An `Icon` inlines its SVG at build, so every name it can take must be written in the page;
+> then only those ship. A choice: `Icon "{done ? "lucide:check" : "lucide:circle"}"`. A prefix and a choice:
+> `Icon "lucide:{open ? "chevron-up" : "chevron-down"}"`. A field of a list written in the page (and changed by no
+> action): `each tabs as tab { Icon "{tab.icon}" }`. Per value, `match` still works. A name that comes from the server
+> is an error: an icon whose **URL lives in your data** is an `Image` - `Image "{item.iconUrl}" alt("")`.
 
 ## Interactive
 

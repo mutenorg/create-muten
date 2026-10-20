@@ -69,7 +69,13 @@ A page can be correct and still look flat. Modern = considered **depth, restrain
 - **A restrained gradient/glow — ONE, with purpose.** A hero band, a primary button, or a stat strip can carry a subtle `bg-gradient-to-br` (two close hues) or a soft radial glow behind the headline. Never a rainbow, never a gradient on every card. Depth beats saturation.
 - **Translucency + blur** on anything sticky/overlaid: `sticky top-0 bg-background/80 backdrop-blur-lg border-b` for a nav; `bg-card/60 backdrop-blur` for a glass panel. This one detail reads as instantly modern.
 - **Confident, oversized display type.** The hero headline should be genuinely large (`text-5xl md:text-7xl tracking-tight leading-[1.02]`) with an **eyebrow** label above it (`text-xs uppercase tracking-[0.2em] text-muted-foreground`). Big type + generous whitespace is the whole look.
-- **Micro-motion on reveal + hover.** `animate-fade-in`/`animate-scale-in` on sections as they mount; `transition-colors`/`transition-transform hover:-translate-y-0.5` on cards and buttons. A light touch — motion everywhere reads as cheap.
+- **Micro-motion on reveal, not on hover.** `animate-fade-in`/`animate-scale-in` on sections as they mount. A light touch: motion everywhere reads as cheap. Hover has its own rules, below: it is the most common source of a blinking UI.
+
+## Hover never blinks (two bugs that compile clean and ship everywhere)
+Both look fine in a screenshot and in a quick test, and both make a real pointer see the UI flicker. They are the same bug in two forms: the hover state or its colour going on and off on its own.
+- **A hover never moves the element off the pointer.** `hover:-translate-y-1` / `translateY(-4px)` on a card: the pointer resting on its bottom edge makes it rise, the pointer is now outside, it drops back under it, rises again, a hover that blinks forever (a real hand never holds perfectly still). Scaling *up* is safe (the box grows under the pointer); moving is not. If a card must lift, an invisible strip fills the gap it leaves, and the card must not clip it (`overflow: hidden` on a Card does):
+  `.card:hover::after { content: ""; position: absolute; left: 0; right: 0; top: calc(100% - 2px); height: 8px; }`. Simpler: lift with the shadow only.
+- **A hover on a row, a menu item, a nav link or a button changes colour instantly, with no `transition-colors`.** A fade there leaves trails when the pointer sweeps a list: the row it left is still fading out, the next is fading in, and in the 2–4 px gap between rows they all dim at once; the whole menu reads as blinking. shadcn's menus don't animate hover; nor do Linear or Raycast. Keep transitions for what moves (a press, a fold, a sliding tab pill), never for a hover colour on something seen tens of times a day.
 - **Real imagery in rounded frames**, `object-cover`, with a subtle ring/overlay — a page with photos feels 10× more real than one of solid blocks. (Only use an image URL you're confident resolves; a broken image is worse than a tasteful gradient frame — fall back to `bg-gradient-to-br from-muted to-accent` with an `Icon` centered.)
 - **Refined details:** hairline dividers between sections (`border-t border-border`), `text-muted-foreground` for every secondary line, `tabular-nums` on figures, tight `tracking-tight` on headings and `tracking-widest` on tiny labels. Modern lives in the small stuff.
 
@@ -77,6 +83,7 @@ A page can be correct and still look flat. Modern = considered **depth, restrain
 Name things the way a user recognizes them (a person manages *notifications*, not *webhook config*). Buttons say what happens ("Publish"). Errors say what's wrong + how to fix. Write real labels, never lorem.
 
 ## The pre-ship pass before you call a page done
+1. **Sweep every list and card with the pointer, slowly, and rest it on each edge** (the bottom one above all): nothing blinks, nothing moves off the pointer, no row fades.
 1. **Every text is legible** — dark-on-light or light-on-dark, never light-on-light; no negative-z overlay hiding a scrim. Read every heading; if you can't, the contrast is wrong.
 2. One clear focal point + real hierarchy (not a flat list of same-weight blocks).
 3. Semantic tokens only — no random hexes; accent used once, with purpose.

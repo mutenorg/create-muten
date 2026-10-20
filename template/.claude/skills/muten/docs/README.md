@@ -27,6 +27,8 @@ compiles them to vanilla JS + fine-grained signals (no virtual DOM, no framework
 - [SEO](seo.md) - `meta {}`, SSG, sitemap/robots/canonical/JSON-LD by nature, `--url`.
 - [Stores](stores.md) - app-global state, `get`, `effect`, page→store composition.
 - [Parts](parts.md) - reusable fragments, inlined at build, object + action params.
+- [The browser, without JavaScript](browser.md) - files (pick, drop, resize, upload), `url`, `device.now` / scroll, Esc, sound, money fields, libraries by `<script>`.
+- [Texts in several languages](texts.md) - `src/lang/<code>.lang` as data, `t("key", …)`, the `lang` store, what check says.
 - [Escapes](escapes.md) - `Custom` (vanilla-JS widgets) and `use` (JS logic functions); when to reach for each, and when NOT to.
 - [Plugins & component libraries](plugins.md) - `muten add` (eject) vs `plugins {}` (import); the registry seam; `@muten/shadcn`.
 

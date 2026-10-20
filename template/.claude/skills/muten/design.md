@@ -69,7 +69,6 @@ Stack class("pad-lg gap-md card") {
 NOT the inputs. So skin these once in `styles.css` (or your forms look unstyled):
 ```css
 .mu-form        { display: flex; flex-direction: column; gap: 12px; }
-.mu-form-title  { display: none; }                 /* hides the auto "New <Entity>" heading */
 .mu-field       { width: 100%; padding: 9px 12px; font-size: 14px; border-radius: 8px;
                   border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); }
 .mu-field:focus { outline: 2px solid var(--color-primary); outline-offset: -1px; }

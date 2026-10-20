@@ -133,6 +133,11 @@ Authentic shadcn styling, your `.muten` stays readable. See its README for the c
 props and an example. Compose the parts; your CSS only places and sizes them (e.g. `--dw` for `DeviceFrame`, the one
 phone of the library). `node node_modules/@muten/shadcn/scripts/reuse-audit.mjs src` lists what an app redraws by hand.
 
+### Theming it - one line in theme.muten
+
+`theme shadcn { preset noir  primary "#6B46F2" }` connects the plugin's look and enables its parts: no
+`@import` in `styles.css`, no `styling {}` adapter, no `plugins { shadcn {} }`. See [Styling](styling.md).
+
 ## Building your own plugin
 
 Publish an npm package with a `registry.json` + the part `.muten` files (+ optional `globals.css` and host `.js`
