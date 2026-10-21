@@ -183,6 +183,7 @@ entity User {                    # data shape + validation (implicit `id uuid`)
   name  text  required           # constraints: required | min:N | max:N | pattern:"<regex>"
   email email required
   role  admin | member           # `a | b | c` = enum
+  plan  free "Gratis" | pro "Pro" "Plan"   # words shown: each value's after it, the field's label last (code stays English)
 }
 
 state {                          # page-LOCAL reactive state
@@ -325,13 +326,13 @@ A bare string is the node's main prop. `{ }` = children. Style everything (layou
 | `SearchField` | single-line text input bound to state | `SearchField bind(q) "Search…"` |
 | `Textarea` | multi-line text input bound to a text state (standalone `<textarea>`) | `Textarea bind(msg) "Write a message…"` |
 | `Password` | masked text input bound to a text state | `Password bind(pw) "Password"` |
-| `Select` | dropdown bound to a text state; fixed `options()` | `Select bind(role) options(admin, member) "Role"` |
+| `Select` | dropdown bound to a text state; fixed `options()`, each with the words it shows if they differ | `Select bind(sort) options(name "Nombre", price "Precio") "Ordenar"` |
 | `Checkbox` | bool: `bind` a page state (two-way), or `checked(expr)` to display + `-> action` to toggle (store/query rows) | `Checkbox bind(agree) "I accept"` · `Checkbox checked(t.done) -> todos.toggle(t.id)` |
 | `Number` | numeric input bound to a number state | `Number bind(qty) min(1) max(99)` |
-| `Range` | slider bound to a number state | `Range bind(volume) min(0) max(100) step(5)` |
+| `Range` | slider bound to a number state | `Range bind(volume) "Volumen" min(0) max(100) step(5)` |
 | `Date` | native date picker bound to a date/text state | `Date bind(due)` |
 | `Form` | auto-form from an entity draft | `Form bind(draft) submit(create) "Save"` |
-| `DataTable` | table over a list/query (`@` sigil; raw cells, no per-column format) | `DataTable @users columns(name, email)` |
+| `DataTable` | table over a list/query (`@` sigil; raw cells, no per-column format); a header says its words if given | `DataTable @users columns(name "Nombre", email "Correo")` |
 | `Chart` | native dataviz (SVG, no JS): title + `kind` (bar/line/area/point/**scatter/pie/donut**) + `x`/`y`/`color`; axes/legend auto | `Chart @sales "Revenue" kind(pie) x(month) y(revenue)` |
 | `Svg` + `Rect`/`Line`/`Circle`/`Arc`/`Path`/`Group` | native vector layer (the escape UNDER Chart): marks from data, coords are number exprs (`map` scales); `Arc` = pie/donut/gauge | `Svg viewBox("0 0 200 120") { Arc cx(100) cy(105) r(85) start(-90) end(map(v,0,100,-90,90)) inner(58) } }` |
 | `RowAction` | a button inside each table row | `RowAction "Delete" -> remove(row.id)` |

@@ -87,7 +87,7 @@ Reach for `Table`/`Row`/`Cell` when **you** control the row/cell markup (mixed c
 | `Select` | `<select>` | bound choice: `Select bind(role) options(founder, engineer, other) "Pick a role"` - `options` (the value list) is required; the string is the empty-value prompt (binds a **text** state) |
 | `Checkbox` | `<label>`+`<input type=checkbox>` | a bool. `Checkbox bind(agree) "I accept"` two-way-binds a page **bool** state. For a store/query list ROW (not `bind`-able), display + toggle: `Checkbox checked(t.done) -> todos.toggle(t.id)` — `checked(<bool>)` shows it, `-> action` toggles; `checked` alone = read-only |
 | `Number` | `<input type=number>` | numeric input, two-way bound: `Number bind(qty) min(1) max(99) step(1)` (binds a **number** state; value coerced with `Number()`) |
-| `Range` | `<input type=range>` | slider, two-way bound: `Range bind(volume) min(0) max(100) step(5)` (binds a **number** state; defaults 0..100 step 1) |
+| `Range` | `<input type=range>` | slider, two-way bound: `Range bind(volume) "Volumen" min(0) max(100) step(5)` (binds a **number** state; defaults 0..100 step 1; its text is the name a screen reader says, and it sets `--value` and `--fill` for your CSS) |
 | `Date` | `<input type=date>` | native date picker: `Date bind(due)` (binds a **date**/text state, ISO `YYYY-MM-DD`) |
 
 ```muten
@@ -97,7 +97,7 @@ SearchField bind(q) on(enter: search) "Search products"
 Password bind(pw) "Password"
 Select bind(role) options(founder, engineer, other) "Pick a role"
 Checkbox bind(agree) "I accept the terms"
-Range bind(volume) min(0) max(100) step(5)   # slider; Number bind(qty) is the same for a stepper
+Range bind(volume) "Volumen" min(0) max(100) step(5)   # slider; Number bind(qty) is the same for a stepper
 Date bind(due)                                 # native calendar popup for a single date
 ```
 

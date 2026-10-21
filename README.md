@@ -114,6 +114,7 @@ e.g. in CI):
 ```sh
 create-muten my-app --scss --pm pnpm      # full control
 create-muten my-app --css --no-install    # just scaffold, decide later
+create-muten my-app --link ../muten       # run on a local @muten/core checkout (engine work, no publish)
 ```
 
 | Flag | Effect |
@@ -127,6 +128,7 @@ create-muten my-app --css --no-install    # just scaffold, decide later
 | `--tauri` | add `src-tauri/` - a native desktop app (needs the Rust toolchain) |
 | `--android` | an installable `.apk`: `capacitor.config.json` + `npm run android` + a CI workflow. `npm run android` is the whole build (toolchain check → `android/` → bundle → sync → Gradle → the file); the workflow does the same with nothing installed locally; `muten android --install` fetches a JDK + the SDK into `~/.muten` if you want it on your machine |
 | `--pm <npm\|pnpm\|yarn\|bun>` | package manager to use (default: detected) |
+| `--link <folder>` | use a local `@muten/core` checkout instead of npm's: a symlink (`file:` for npm/bun, `link:` for yarn/pnpm), so `npm run build` in the engine is all an app needs to see a change |
 | `--no-install` | scaffold only - don't install or start the dev server |
 | `--help` | print usage and exit |
 | `--version` | print the version and exit |

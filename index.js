@@ -2,12 +2,12 @@
 // create-muten — scaffold a new Muten app, with modern interactive prompts (@clack/prompts).
 //
 //   npm create muten@latest [name]              (or: npx create-muten)
-//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--no-install]
+//   create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--link <muten folder>] [--no-install]
 //
 // Stylesheet (CSS or SCSS) is the base; Tailwind is an optional add-on ON TOP of CSS (it's a styling
 // library, not a stylesheet replacement). Interactive in a TTY; flags / non-TTY make it scriptable.
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { intro, outro, text, select, confirm, isCancel, cancel, note } from '@clack/prompts';
@@ -18,6 +18,7 @@ const TEMPLATE = join(SELF, 'template');
 const TAURI_TEMPLATE = join(SELF, 'template-tauri'); // src-tauri/ overlay, copied only when --tauri
 const PKG = JSON.parse(readFileSync(join(SELF, 'package.json'), 'utf8'));
 const PMS = ['npm', 'pnpm', 'yarn', 'bun'];
+const LINKED_CLI = 'node_modules/@muten/core/dist/bin/muten.js';   // the CLI inside a --link'ed engine
 
 // the starter reset — written by the CLI so the template stays pure .muten (no default styles file).
 const RESET = `/* Your look. Muten ships STRUCTURE (primitives); the LOOK lives here, applied with class("…"). */
@@ -423,9 +424,9 @@ async function main() {
   const has = (f) => argv.includes(f);
   const val = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
   if (has('-v') || has('--version')) { console.log(PKG.version); return; }
-  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--no-install]'); return; }
+  if (has('-h') || has('--help')) { console.log('Usage:\n  create-muten [name] [--css|--scss] [--tailwind] [--daisyui] [--devtools] [--vercel] [--tauri] [--android] [--pm npm|pnpm|yarn|bun] [--link <muten folder>] [--no-install]'); return; }
 
-  let name = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--pm')[0];
+  let name = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '--pm' && argv[i - 1] !== '--link')[0];
   let style = has('--scss') ? 'scss' : has('--css') ? 'css' : undefined;     // the base stylesheet
   let tailwind = has('--tailwind') ? true : undefined;                        // optional add-on (CSS only)
   let daisyui = has('--daisyui') ? true : undefined;                          // component classes on Tailwind
@@ -435,7 +436,11 @@ async function main() {
   let devtools = has('--devtools') ? true : has('--no-devtools') ? false : undefined; // @muten/devtools plugin (dev-only overlay)
   let pm = val('--pm');
   let install = has('--no-install') ? false : undefined;
+  // --link: a local checkout of @muten/core (its folder). The app runs on it instead of the published engine, so an
+  // engine change shows after `npm run build` there, with no publish. A symlink, never a copy that goes stale.
+  const link = val('--link') && resolve(val('--link'));
   if (name && !validName(name)) { console.error(`Invalid name: "${name}" (letters, digits, . _ -)`); process.exit(1); }
+  if (link && JSON.parse(existsSync(join(link, 'package.json')) ? readFileSync(join(link, 'package.json'), 'utf8') : '{}').name !== '@muten/core') { console.error(`--link: "${link}" is not a @muten/core folder`); process.exit(1); }
   if (pm && !PMS.includes(pm)) { console.error(`Unknown package manager: "${pm}" (${PMS.join(', ')})`); process.exit(1); }
   const dpm = detectPM();
 
@@ -555,9 +560,13 @@ async function main() {
     appendAgents(ANDROID_NOTE(pm));
   }
   writeFileSync(join(target, 'muten.config'), mutenConfigText({ styling, classes, plugins })); // the build config, in muten: security (CSP) always, plugins + theme adapter when chosen
+  // yarn 1 copies a file: dependency (a snapshot that never sees the next build); link: is its symlink, pnpm reads both
+  if (link) pkg.dependencies['@muten/core'] = `${pm === 'yarn' || pm === 'pnpm' ? 'link' : 'file'}:${relative(target, link) || '.'}`;
+  // …and yarn 1 does not put a link:'s bin in node_modules/.bin, so the scripts call the engine's CLI by its path
+  if (link) for (const [key, script] of Object.entries(pkg.scripts || {})) pkg.scripts[key] = script.replace(/^muten /, `node ${LINKED_CLI} `);
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-  const desc = `muten, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}${android ? ' + Android' : ''}`;
+  const desc = `muten${link ? ' (linked)' : ''}, ${style}${tailwind ? ' + Tailwind' : ''}${daisyui ? ' + DaisyUI' : ''}${devtools ? ' + DevTools' : ''}${vercel ? ' + Vercel' : ''}${tauri ? ' + Tauri' : ''}${android ? ' + Android' : ''}`;
   if (!install) {
     if (process.stdin.isTTY) { note(`cd ${name}\n${pm} install\n${pm} run dev`, 'Next steps'); outro(color.green(`Created ${name}  (${desc})`)); }
     else console.log(`\n  Created ${name} (${desc}, ${pm})\n  cd ${name} && ${pm} install && ${pm} run dev\n`);

@@ -91,6 +91,25 @@ for (const combo of COMBOS) {
   }
 }
 
+// --link: the app runs on a local engine. Each package manager needs the spelling that makes a SYMLINK (yarn 1 copies
+// a file: dependency, a snapshot that silently misses every later engine build), and a folder that is not the engine
+// is refused instead of becoming a dependency that fails at install.
+const ENGINE = join(SELF, '..', '..', 'muten');
+if (existsSync(join(ENGINE, 'package.json'))) {
+  for (const [name, pm, prefix] of [['l1', 'npm', 'file:'], ['l2', 'yarn', 'link:'], ['l3', 'pnpm', 'link:']]) {
+    console.log(`\ncreate-muten --link <muten> --pm ${pm}`);
+    const run = spawnSync(process.execPath, [CLI, name, '--link', ENGINE, '--pm', pm, '--no-install'], { cwd: ROOT, encoding: 'utf8' });
+    if (run.status !== 0) { check('scaffolds', false, (run.stderr || '').slice(0, 120)); continue; }
+    const dep = JSON.parse(readFileSync(join(ROOT, name, 'package.json'), 'utf8')).dependencies['@muten/core'];
+    const scripts = JSON.parse(readFileSync(join(ROOT, name, 'package.json'), 'utf8')).scripts;
+    check('scripts call the linked CLI by path (yarn 1 links no bin)', Object.values(scripts).every((script) => !/^muten /.test(script)) && existsSync(join(ENGINE, scripts.dev.split(' ')[1].replace('node_modules/@muten/core/', ''))), JSON.stringify(scripts));
+    check(`@muten/core is ${prefix} to the engine`, dep.startsWith(prefix) && join(ROOT, name, dep.slice(prefix.length)) === ENGINE, dep);
+  }
+  console.log('\ncreate-muten --link <not the engine>');
+  const bad = spawnSync(process.execPath, [CLI, 'l4', '--link', SELF, '--no-install'], { cwd: ROOT, encoding: 'utf8' });
+  check('refused', bad.status !== 0 && !existsSync(join(ROOT, 'l4')), `exit ${bad.status}`);
+}
+
 rmSync(ROOT, { recursive: true, force: true });
 console.log(fails ? `\n${fails} FAILED` : '\nALL OK');
 process.exit(fails ? 1 : 0);

@@ -48,6 +48,22 @@ Page class("flex flex-col gap-4 p-6") {
 > **flagged by the oracle** (`unknown-field-type`, with a did-you-mean) - it would otherwise silently render as
 > a plain text input. For an input Muten doesn't have, drop that one field to a [`Custom`](escapes.md).
 
+## Labels in the product's language
+
+A Form labels each field with its name (`customer` → «Customer»). When the code is in English and the screen is not,
+give the field its words at the end of its line, and an enum value its words right after it:
+
+```muten
+entity Checkout {
+  customer text  required min:3 "Nombre"
+  email    email required "Correo"
+  delivery today "Hoy" | tomorrow "Mañana" "Entrega"
+}
+```
+
+The value saved is still `today` / `tomorrow`; the person reads «Hoy» / «Mañana» under «Entrega». A standalone
+`Select` does the same: `Select bind(sort) options(name "Nombre", price "Precio") "Ordenar por"`.
+
 ## Validation - constraints on the entity field
 
 Constraints live on the **entity** declaration, so they travel with the data shape and are enforced wherever
