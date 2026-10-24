@@ -54,7 +54,25 @@ muten add card badge dialog
 ```
 
 It pulls each component's dependencies too. Importing and ejecting mix freely: import the ones you use as-is,
-eject the few you want to customize.
+eject the few you want to customize. A component is found by its name or its part: `muten add alert-dialog` and
+`muten add AlertDialog` are the same.
+
+### 3. Any npm package (`muten add <package>`)
+
+A name that is neither a registry component nor a muten plugin is an npm package. `muten add` installs it with the
+app's own package manager (yarn, pnpm, bun or npm, by the lock file), refuses it when it only runs on a server (a
+secret-key SDK, a database driver, anything that needs Node's `fs`/`http`/`zlib`…), reads its types, weighs it,
+and prints the lines to write:
+
+```sh
+muten add react-day-picker
+# ✓ react-day-picker installed · all of it is about 21 KB gzipped; a page carries only what it uses
+#   use DayPicker from "react-day-picker"       # a React component
+#   DayPicker(…)                                # written where an element goes: mounted as an island
+#   use "react-day-picker/style.css"            # its stylesheet, added to the app's CSS
+```
+
+Copy those lines; don't guess the export names.
 
 ## How it works (the registry seam)
 

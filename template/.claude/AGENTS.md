@@ -88,5 +88,5 @@ Page class("flex flex-col gap-4 p-6") {
 
 ## Plugins (optional)
 Enabled in `muten.config`'s `plugins {}` block; `muten add <name>` installs + configures for you.
-- **`muten add devtools`** → [`@muten/devtools`](https://www.npmjs.com/package/@muten/devtools): a dev-only in-app overlay (component tree · editable state · Redux-style history + time-travel · profiler · element picker). `muten dev` auto-mounts it; production omits it (zero cost).
+- **Devtools are built in**: `muten dev` shows them (Inspect · Timeline · Data · Profiler · Texts · Issues · X-ray · Copy for AI); a build never includes them. `dev { devtools false }` turns them off.
 - **`muten add Card Dialog …`** (PascalCase) → eject shadcn-style components from an installed registry (e.g. `@muten/shadcn`) into `src/parts/`.

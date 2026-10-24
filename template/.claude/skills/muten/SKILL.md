@@ -601,6 +601,21 @@ shell {
 routes { "/" -> home }
 ```
 
+### Layouts (chrome for SOME routes) and the `default` one
+Chrome that only some routes share goes in a `layout` (kept mounted while moving between its routes; never call
+the nav part from each page, that rebuilds it on every navigation). The one (almost) every route has is marked
+`default`; a route that must not have it says so on its own line:
+```
+layout site default { SiteNav()  slot }
+layout admin { Sidebar()  slot }
+routes {
+  "/"        -> home                    # in site (the default)
+  "/search"  -> search without site     # no site chrome
+  "/panel"   -> panel in admin          # another layout
+}
+```
+One `default` per app. A whole section without it is its own layout, never a list of exceptions (docs/routing.md).
+
 ## 11. Entities, forms & validation
 `entity` defines a shape + constraints. `Form bind(draft) submit(create)` auto-renders one input per
 field and validates on submit (per-field `.field-error`), blocking the action if invalid.
@@ -648,8 +663,8 @@ Custom Map inputs(markers: @places) on(markerClick: select)
 #   Call a handler with `on.markerClick(payload)`; read a value with `inputs.markers`.
 ```
 - Signature is **`mount(el, inputs, on)`** (three positional args), NOT `mount(el, { inputs, on })`.
-- Define it as a plain `function mount(...)`, **not** `export function mount` - the file is inlined, so an
-  `export` is a syntax error and leaves the screen blank.
+- `function mount(...)` or `export function mount(...)`: both work (the file is inlined and the `export` dropped).
+  In TypeScript (`src/components/Name.ts`), export and type it: each call is then checked against its types.
 - **An input value needs `@` to pass STATE: `inputs(data: @sales)` passes the array; bare `inputs(data: sales)`
   passes the literal string "sales".** Inputs are a **snapshot at mount** by default. For a Custom that must
   track LIVE data, **return an updater function** from `mount` - `return (inputs) => { …redraw… }` - and muten

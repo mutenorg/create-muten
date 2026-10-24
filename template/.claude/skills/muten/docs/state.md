@@ -134,6 +134,32 @@ makes both `contains` and `persist` work - see the [Lists](lists.md) guide.)
 
 `persist` is **not** for `query`-backed state (the server is the source of truth there).
 
+## `every` - what changes with time on its own
+
+```
+state { clock = now() : text }
+every 1m {
+  clock.set(now())
+}
+Text "Abre en {daysUntil(opensAt)}"   # anything reading `clock` recomputes each minute
+```
+`every <duration> { … }` (`500ms`, `30s`, `1m`) runs its statements on that beat while the tab is visible, and once more
+when the tab comes back, so a phone left in a pocket shows the right minute at once. Leaving the page stops it. It is
+the page's clock: no `Custom` with a `setInterval`. A list asked again on a beat is `query x every 30s` instead.
+
+## `settle` - once a value stops changing (search as you type)
+
+```
+state { q = "" : text }
+settle q 350ms {
+  results.refetch(q: q)
+}
+SearchField bind(q) "Buscar"
+```
+`settle <value> <duration> { … }` runs its statements once the value has not changed for that long: typing «hola»
+asks once, for «hola», not four times. A value already there when the page opens (a restored draft) settles too; an
+empty one does not. No `Custom` with a timer.
+
 ## Constants - `const`
 
 For a value that never changes, use `const` (a compile-time scalar, inlined, never reactive):

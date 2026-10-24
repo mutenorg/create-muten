@@ -30,7 +30,7 @@ compiles them to vanilla JS + fine-grained signals (no virtual DOM, no framework
 - [The browser, without JavaScript](browser.md) - files (pick, drop, resize, upload), `url`, `device.now` / scroll, Esc, sound, money fields, libraries by `<script>`.
 - [Texts in several languages](texts.md) - `src/lang/<code>.lang` as data, `t("key", …)`, the `lang` store, what check says.
 - [Escapes](escapes.md) - `Custom` (vanilla-JS widgets) and `use` (JS logic functions); when to reach for each, and when NOT to.
-- [Plugins & component libraries](plugins.md) - `muten add` (eject) vs `plugins {}` (import); the registry seam; `@muten/shadcn`.
+- [Plugins & component libraries](plugins.md) - `muten add` (eject a component, enable a plugin, or bring in any npm package) vs `plugins {}` (import); the registry seam; `@muten/shadcn`.
 
 ## Reference
 - [Primitives](reference/primitives.md) - every primitive, its props, children, and output tag.

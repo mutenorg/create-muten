@@ -24,7 +24,21 @@ A `get` that takes parameters is a function written in muten's expression gramma
 and calling it with the wrong number of values is an error. Put the ones several pages share in a `.store`
 (`src/format.store`: `get price(cents) = money(cents / 100, "COP")`) and call them `format.price(x)` from any page.
 
-## Components from npm: `use element | widget | react`
+## More than an expression: `fn`, TypeScript in the file
+
+```
+fn finalPrice(p: Product, rate?: number): number {
+  const tax = p.country === "CO" ? 0.19 : 0
+  return Math.round(p.price * (1 + (rate ?? tax)))
+}
+Text "{money(finalPrice(item))}"
+```
+When a function needs statements (a `const`, a loop, an early `return`), write it as a `fn` at the top of the page or
+store, in TypeScript, instead of a one-function `.ts` file. It is a plain function: it gets values as parameters (pass
+`item`, `cart.total`), returns one, and never changes state (that is an `action`'s job). `check` knows its name and how
+many values it takes; a body TypeScript cannot read is a finding at its line. `fn` declares only at the start of a line.
+
+## Components from npm: `use element | widget | react | vue | svelte | solid`
 
 ```
 use element Rating "star-rating" from "star-rating-pkg"    # a Web Component: its tag, then the package that defines it
@@ -38,8 +52,34 @@ Calendar(selected: day) on(select: pickDay)
 - Props are expressions (reactive: the component gets the new value when they change); `on(event: action)` wires
   its events (a Web Component's CustomEvent `detail`, or the value a React `onX` callback is called with).
 - Nothing to write in JS: the package comes from `node_modules`, bundled into the pages that use it.
-- `use react` ships React (about 45 KB gz) **only on the pages that use it**. Prefer a Web Component or a native
+- **`react` is optional.** `use Calendar from "react-day-picker"` and then `Calendar(…)` where an element goes is a
+  React component: muten tells it by how it is used (the same name in an expression, `new Chart(…)`, stays a class or
+  a function). Web Components still say `use element` (they need their tag) and mount-style modules `use widget`.
+- A part may carry its own `use` for the component it draws: it mounts on any page that calls the part.
+- React ships (about 45 KB gz) **only on the pages that use it**, and each island wakes as it nears the screen. Prefer a Web Component or a native
   primitive when one exists; reach for React when the library you need only exists there.
+- **Lighter React: Preact.** `islands { react "preact" }` in muten.config (and `npm i preact`) runs every React island
+  on preact/compat: the same components, about 4 KB gz instead of React's 45. Most libraries work; one that reaches
+  into React's internals does not, so try the page before shipping.
+
+### Vue, Svelte 5 and Solid components
+
+```
+use vue VueDatePicker from "@vuepic/vue-datepicker"
+use svelte Chart from "some-svelte-chart"
+use solid Sortable from "some-solid-sortable"
+
+VueDatePicker(modelValue: day) on("update:modelValue": pickDay)   # quote an event name a word can't spell
+Chart(data: sales)
+Sortable(items: rows) on(change: reorder)
+```
+- Each is an island like a React one: its framework and library load as it nears the screen, only on pages that use it.
+- Props are live through the framework's own reactivity (the component is not mounted again). `on(pick: x)` is its
+  `onPick` prop (Vue's emits listen that way; a Svelte island also gets `onpick`).
+- It takes **no muten children** (`island-children` says so): pass what it needs as props. A component that needs slots
+  is a hand-written `Custom` widget.
+- Compiled packages only: a library that ships just `.svelte` source (or only Solid's `solid` export condition) needs its
+  compiler, which muten does not run.
 - A `Custom` whose file has its own `import`s is bundled as a module too (`export function mount`).
 
 ### SDKs that draw into an element (maps, charts, card fields)
@@ -119,7 +159,7 @@ Toaster(position: "top-center")
 
 ## `Custom` - a host-JS widget
 
-Write vanilla JS in `src/components/<Name>.js` and mount it with `Custom`. It receives `inputs` (values you
+Write vanilla JS (or TypeScript) in `src/components/<Name>.js` (or `.ts`) and mount it with `Custom`. It receives `inputs` (values you
 pass) and wires DOM events back to your actions via `on`:
 
 ```muten
@@ -138,14 +178,29 @@ function mount(el, inputs, on) {        // THREE positional args
 Rules that matter:
 
 - The signature is **`mount(el, inputs, on)`** - three positional args (not `mount(el, { inputs, on })`).
-- Define it as a plain **`function mount(...)`**, **not** `export function` - the file is inlined, so an
-  `export` is a syntax error and leaves the screen blank.
+- `function mount(...)` or `export function mount(...)`: both work (the file is inlined and the `export` dropped).
+- **In TypeScript (`Name.ts`), export it and type it**, and every call is checked against those types
+  (`custom-type`): an input or an event it does not take, or a required one left out, is a finding at the call.
+
+  ```ts
+  // src/components/Counter.ts
+  export function mount(el: HTMLElement, inputs: { start: number; label?: string }, on: { done?: (n: number) => void }) { … }
+  ```
 - **Pass state with `@`:** `inputs(data: @sales)` passes the array; bare `inputs(data: sales)` passes the
   literal string `"sales"`. To feed a query's rows, make a `get` first - `get rows = orders.data` - then
   `inputs(data: @rows)`.
 - **Reactive inputs:** initial values are read at mount. For **live** values, `return` a function from `mount` -
   muten re-calls it with the fresh `inputs` whenever a bound `@state` changes. Return nothing and the inputs
   stay a mount-time snapshot (fine for a widget that owns its own data).
+- **Heavy and below the first screen? `lazy`.** `Custom Sky lazy inputs(tone: tone)` mounts only as its place
+  nears the screen, so what its `mount` loads with `import(…)` (a shader engine, a QR library, a map SDK) is
+  downloaded then, not with the page. Leaving the page before it nears never loads it. Use it for the heavy ones;
+  a light widget gains nothing (its code is already in the page). `lazy` on anything but a `Custom` is a
+  `lazy-target` finding.
+- **When it wakes: `wake`.** On a Custom or a component from npm (React, Vue, Svelte, Solid), like Astro's `client:`:
+  `wake visible` (the default for npm components: as its place nears the screen), `wake load` (as the page opens),
+  `wake idle` (once the browser has nothing else to do), `wake media "(min-width: 800px)"` (while the query holds: a
+  desktop-only widget never loads on a phone). `Calendar(selected: day) wake idle` · `Custom Map wake media "(min-width: 900px)"`.
 
 `Custom` is the only way to use non-Muten **UI** code. It's for genuine widgets - not for things Muten already
 does (see below).

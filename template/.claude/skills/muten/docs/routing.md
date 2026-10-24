@@ -99,6 +99,33 @@ routes {
 }
 ```
 
+### The layout (almost) every route has: `default` + `without`
+
+When nearly every route shares the chrome (a site's top bar) and only a few do not (a full-screen search, the 404),
+mark the layout `default` instead of writing `in site` on every route. A route that must not have it says so on its
+own line, so reading a route's line tells you everything about it, and a new route gets the bar by itself:
+
+```muten
+layout site default {
+  SiteNav()
+  slot
+}
+routes {
+  "/"        -> home                    # in site
+  "/pricing" -> pricing                 # in site
+  "/search"  -> search without site     # no bar
+  "/panel"   -> panel in admin          # another layout
+}
+```
+
+- One `default` layout per app (a route mounts in one layout). `muten check` flags a `without` that names no layout,
+  one on a route that is already `in` another, and one that names a layout that is not the default (it does nothing).
+- A whole section without the bar is its own layout (`in admin`), not a list of exceptions.
+- A layout is no page: when the pages take their language from a store (`lang from ui.lang` in each), say it once in
+  app.muten too (`lang from ui.lang`), so the shell and the layouts speak the same language as the page under them.
+- A layout's in-page link (`Link "" -> "#top"`) lands in the page under it: `muten check` accepts it when every page
+  mounted in that layout declares the id, and names the layout when one of them does not.
+
 - Don't call the sidebar part from each page: that rebuilds it on every navigation. Put it in the layout.
 - `shell` still wraps everything (layouts mount inside its `slot`). Use `shell` for chrome on EVERY route, a
   `layout` for chrome on a group of them.

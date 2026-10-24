@@ -69,6 +69,25 @@ Each page carries **only the texts it names**, in every language (a run-time key
 page with three texts ships three, not the whole app's table. A missing text falls back to another language,
 then to the key itself, so a screen never goes blank.
 
+## Outside a page - `muten:texts`
+
+A `use` function or a `Custom` that builds words of its own (a list for a component, a label a script writes) reads the
+same files through `muten:texts`, with the language passed in:
+
+```ts
+// src/lib/faq.ts
+import { t, texts } from 'muten:texts';
+
+export function faqItems(lang: string) {
+  return ['download', 'pay'].map((id) => ({ id, title: t(lang, `faq.${id}.q`), answer: t(lang, `faq.${id}.a`) }));
+}
+```
+
+`t(lang, key, ...values)` fills `{0}` and picks `singular | plural` like the page's `t`; `texts` is every language's
+table (`texts.en["faq.pay.q"]`), for asking whether a key exists. Unlike a page, this brings **every** text into the
+bundle of whoever imports it, so keep it for the words code really has to build. If your editor does not know the
+module, add `declare module 'muten:texts' { export const texts: { [code: string]: { [key: string]: string } }; export function t(lang: string, key: string, ...values: Array<string | number>): string; }` to a `.d.ts`.
+
 ## Moving from a `.ts` table
 
 An app that already does `use t from "~/lib/i18n.ts"` keeps working: a `use t` of its own wins over the built-in.

@@ -21,6 +21,18 @@ stylesheet** and **pre-renders (SSR) your stores/`query` data** into the HTML, s
 with real content. Store state doesn't persist across full-page navigations (each static page loads fresh; only
 `persist` state does) - `muten bundle` for a stateful multi-page app. See [SEO](seo.md) for the metadata.
 
+## Stylesheets - one per route, then the whole one
+
+`muten bundle` splits the CSS: `index.html` links the **common** sheet (the shell, the layouts), each route gets a
+sheet with its own rules, linked by the router before the page shows, and once the first page is up the **whole**
+sheet (every rule, pruned, in its original order) is asked for in idle time, so moving between pages downloads no
+CSS. The first page pays only for its own rules (an app's login: 202 KB instead of 1.2 MB).
+
+**Keep one stylesheet (`css { routes false }`) when something after the build reads `index.html`'s stylesheet as
+the whole CSS** - a critical-CSS tool (beasties, critters) that inlines each page's rules from it, a snapshot
+script. Split, that sheet holds only the common rules, and every page such a tool writes out comes out unstyled
+until the app runs. muten's own `prerender {}` does not need it: it reads each route's sheet.
+
 ## Environments - `env {}` in muten.config
 
 ```
@@ -60,6 +72,29 @@ muten build --url=https://your-site.com
 The output is just HTML/CSS/JS - ideal for a plain-static host (e.g. Vercel's HTML hosting), no framework
 runtime to configure.
 
+## `pwa { }`, `i18n { }`, `routes { preload }` in muten.config
+
+```
+pwa {
+  name "Storio"  short "Storio"  color "#6B46F2"  background "#ffffff"
+  icons ["public/icon-192.png", "public/icon-512.png"]   # a phone installs only with a 192 and a 512
+  offline true                                           # a service worker: opens with no network
+}
+i18n {
+  languages ["es", "en"]   # what ships (a .lang file not listed is a draft, left out)
+  default "es"             # where a reader starts when nothing matches, and the first fallback for a missing text
+  detect false             # the browser's language does not count (true by default)
+}
+routes {
+  preload "idle"           # intent (default: hover, touch, focus) · visible (links on screen) · idle (all, once idle) · none
+}
+```
+
+- `pwa` writes `manifest.webmanifest` (each icon's size read from the file) and links it with the theme color. With
+  `offline`, pages are network first (a deploy is never stuck behind an old cache), hashed assets cache first, and what
+  the app opens with is stored at install. API answers are never cached: data the app keeps is `persist`'s job.
+- `check` says when a listed language has no file, when the default is not a language, and when an icon is missing.
+
 ## Desktop - Tauri
 
 Scaffold with `--tauri` (or add Tauri later) to wrap the **same** `muten bundle` output as a native app. Tauri
@@ -75,7 +110,7 @@ desktop does. Three tiers, and only the last one installs anything:
 
 | You want | You install | How |
 |---|---|---|
-| An installable app (icon, fullscreen, offline) | nothing | `public/manifest.webmanifest` - open the site on a phone, Chrome ▸ Install |
+| An installable app (icon, fullscreen, offline) | nothing | `pwa { }` in muten.config (below) - open the site on a phone, Chrome ▸ Install |
 | An `.apk` | nothing | scaffold `--android`, push: `.github/workflows/apk.yml` builds it on a runner that already has the SDK |
 | An `.apk` locally (+ emulator) | a toolchain, into `~/.muten` | `npm run android` — it says what's missing, and `muten android --install` gets it (~800MB, no PATH/admin, `rm -rf ~/.muten` undoes it) |
 

@@ -47,6 +47,22 @@ action jump() { scrollTo("#pay") }                                   # smooth, i
 - `on(enter: send)` - Enter sends, Shift+Enter is a new line.
 - `on(typed: search)` - once the person stops typing (300 ms), with the text: a search asks once per pause.
 
+## Touch gestures
+
+On any element, no library:
+
+```
+Stack class("card") on(swipe-left: next, swipe-right: back) { … }   # a flick or a long enough drag, along one axis
+Image "{photo.url}" on(pinch: zoom, double-tap: like)               # pinch hands the scale: action zoom(s: number)
+Stack on(long-press: openMenu) { … }                                 # the click it ends with does not also fire
+```
+
+- `swipe-left` · `swipe-right` · `swipe-up` · `swipe-down` · `long-press` · `double-tap` · `pinch`. Mouse, pen and touch
+  alike; a trackpad pinch counts.
+- The page keeps what the element doesn't use: a card that swipes sideways still scrolls the page up and down, and
+  only an element that pinches stops the page from zooming.
+- Dragging an item to a place is `draggable` / `droptarget`, not a swipe.
+
 ## Sound
 
 `Audio "{msg.voice}" controls` is the browser's player (same keywords as `Video`); `play("/chime.mp3")` plays a short
